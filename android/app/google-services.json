@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "251119516995",
+    "project_id": "fc-tournaments-bc93a",
+    "storage_bucket": "fc-tournaments-bc93a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:251119516995:android:50899eb37b25a1bcb303f6",
+        "android_client_info": {
+          "package_name": "com.fctournaments.fc_tournaments"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZt350FCdLMaiUfWPsamXPSQ0EEikC-_s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

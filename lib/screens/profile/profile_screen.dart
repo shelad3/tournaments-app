@@ -1,0 +1,590 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../providers/app_lock_provider.dart';
+import '../../services/user_service.dart';
+import '../../services/user_stats_service.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/section_header.dart';
+import '../../widgets/stat_card.dart';
+import '../../widgets/game_selector.dart';
+import '../../widgets/team_selector.dart';
+import '../login_screen.dart';
+import '../../services/update_service.dart';
+import '../../widgets/update_dialog.dart';
+
+class AvatarData {
+  final IconData icon;
+  final Color color;
+  final String label;
+
+  const AvatarData({required this.icon, required this.color, required this.label});
+}
+
+const List<AvatarData> builtInAvatars = [
+  AvatarData(icon: Icons.person, color: Colors.blue, label: 'Blue'),
+  AvatarData(icon: Icons.person, color: Colors.red, label: 'Red'),
+  AvatarData(icon: Icons.person, color: Colors.green, label: 'Green'),
+  AvatarData(icon: Icons.person, color: Colors.purple, label: 'Purple'),
+  AvatarData(icon: Icons.person, color: Colors.orange, label: 'Orange'),
+  AvatarData(icon: Icons.person, color: Colors.teal, label: 'Teal'),
+  AvatarData(icon: Icons.person, color: Colors.pink, label: 'Pink'),
+  AvatarData(icon: Icons.person, color: Colors.indigo, label: 'Indigo'),
+  AvatarData(icon: Icons.sports_soccer, color: Colors.blue, label: 'Soccer'),
+  AvatarData(icon: Icons.star, color: Colors.amber, label: 'Star'),
+  AvatarData(icon: Icons.flash_on, color: Colors.yellow, label: 'Flash'),
+  AvatarData(icon: Icons.favorite, color: Colors.red, label: 'Heart'),
+  AvatarData(icon: Icons.diamond, color: Colors.cyan, label: 'Diamond'),
+  AvatarData(icon: Icons.shield, color: Colors.grey, label: 'Shield'),
+  AvatarData(icon: Icons.fireplace, color: Colors.deepOrange, label: 'Fire'),
+  AvatarData(icon: Icons.rocket_launch, color: Colors.indigo, label: 'Rocket'),
+];
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _userService = UserService();
+  final _statsService = UserStatsService();
+  final _imagePicker = ImagePicker();
+  final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _isEditing = false;
+  bool _isSaving = false;
+  UserStats? _stats;
+  bool _loadingStats = true;
+  List<String> _editFavoriteGames = [];
+  String? _editFavoriteTeam;
+
+  @override
+  void initState() {
+    super.initState();
+    final auth = context.read<AuthProvider>();
+    if (auth.user != null) {
+      _loadStats(auth.user!.uid);
+      _editFavoriteGames = List.from(auth.user!.favoriteGames);
+      _editFavoriteTeam = auth.user!.favoriteTeam;
+    }
+  }
+
+  Future<void> _loadStats(String userId) async {
+    final stats = await _statsService.getUserStats(userId);
+    if (mounted) setState(() {
+      _stats = stats;
+      _loadingStats = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _usernameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  static int? _parseAvatarIndex(String? photoUrl) {
+    if (photoUrl == null || !photoUrl.startsWith('avatar:')) return null;
+    return int.tryParse(photoUrl.substring(7));
+  }
+
+  static bool _isBuiltInAvatar(String? photoUrl) => photoUrl?.startsWith('avatar:') ?? false;
+
+  Widget _buildAvatarWidget(String? photoUrl, double radius, BuildContext context) {
+    final index = _parseAvatarIndex(photoUrl);
+    if (index != null && index >= 0 && index < builtInAvatars.length) {
+      final avatar = builtInAvatars[index];
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: avatar.color.withValues(alpha: 0.15),
+        child: Icon(avatar.icon, size: radius, color: avatar.color),
+      );
+    }
+    if (photoUrl != null && !_isBuiltInAvatar(photoUrl)) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+        backgroundImage: NetworkImage(photoUrl),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+      child: Icon(Icons.person, size: radius, color: Colors.grey),
+    );
+  }
+
+  void _startEditing() {
+    final user = context.read<AuthProvider>().user;
+    if (user == null) return;
+    _nameController.text = user.fullName;
+    _usernameController.text = user.username;
+    _phoneController.text = user.phoneNumber;
+    setState(() {
+      _isEditing = true;
+      _editFavoriteGames = List.from(user.favoriteGames);
+      _editFavoriteTeam = user.favoriteTeam;
+    });
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => _isSaving = true);
+    final auth = context.read<AuthProvider>();
+    await _userService.updateUser(auth.user!.uid, {
+      'fullName': _nameController.text.trim(),
+      'username': _usernameController.text.trim(),
+      'phoneNumber': _phoneController.text.trim(),
+      'favoriteGames': _editFavoriteGames,
+      'favoriteTeam': _editFavoriteTeam,
+    });
+    if (auth.user != null) {
+      await _loadStats(auth.user!.uid);
+      await auth.refreshUser();
+    }
+    setState(() {
+      _isSaving = false;
+      _isEditing = false;
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profile updated')),
+    );
+  }
+
+  void _showAvatarPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        maxChildSize: 0.8,
+        minChildSize: 0.4,
+        expand: false,
+        builder: (_, scrollController) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Choose Avatar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _pickAndUploadImage(ImageSource.camera);
+                      },
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Camera'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _pickAndUploadImage(ImageSource.gallery);
+                      },
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Gallery'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Divider(),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text('Built-in Avatars', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: GridView.builder(
+                controller: scrollController,
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: builtInAvatars.length,
+                itemBuilder: (_, i) => GestureDetector(
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final auth = context.read<AuthProvider>();
+                    await _userService.updateUser(auth.user!.uid, {
+                      'photoUrl': 'avatar:$i',
+                    });
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Avatar updated!'), backgroundColor: Colors.green),
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: builtInAvatars[i].color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: builtInAvatars[i].color.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(builtInAvatars[i].icon, size: 32, color: builtInAvatars[i].color),
+                        const SizedBox(height: 4),
+                        Text(builtInAvatars[i].label, style: TextStyle(fontSize: 10, color: builtInAvatars[i].color, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    final image = await _imagePicker.pickImage(source: source, imageQuality: 80);
+    if (image == null) return;
+
+    final auth = context.read<AuthProvider>();
+    final url = await _userService.uploadProfileImage(auth.user!.uid, image);
+    if (url != null) {
+      await _userService.updateUser(auth.user!.uid, {'photoUrl': url});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile picture updated!'), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign Out')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await context.read<AuthProvider>().signOut();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          if (_isEditing) ...[
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => setState(() => _isEditing = false),
+            ),
+            if (_isSaving)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+              )
+            else
+              TextButton(
+                onPressed: _saveProfile,
+                child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+          ],
+        ],
+      ),
+      body: Consumer<AuthProvider>(
+        builder: (_, auth, __) {
+          final user = auth.user;
+          if (user == null) {
+            return const Center(child: Text('Not signed in'));
+          }
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Center(
+                child: Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: _isEditing ? _showAvatarPicker : null,
+                      child: _buildAvatarWidget(user.photoUrl, 50, context),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: _showAvatarPicker,
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  onPressed: _showAvatarPicker,
+                  icon: const Icon(Icons.face, size: 16),
+                  label: const Text('Change Avatar', style: TextStyle(fontSize: 13)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_isEditing) ...[
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outlined)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.alternate_email)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone Number', prefixIcon: Icon(Icons.phone_outlined)),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 16),
+                TeamSelector(
+                  selectedTeam: _editFavoriteTeam,
+                  favoriteTeam: user.favoriteTeam,
+                  onSelected: (t) => setState(() => _editFavoriteTeam = t),
+                ),
+                const SizedBox(height: 24),
+                SectionHeader(title: 'Favorite Games'),
+                const SizedBox(height: 8),
+                FavoriteGamesSelector(
+                  selectedGames: _editFavoriteGames,
+                  onChanged: (games) => setState(() => _editFavoriteGames = games),
+                ),
+                const SizedBox(height: 24),
+              ] else ...[
+                AppCard(
+                  child: Column(
+                    children: [
+                      _ProfileTile(label: 'Name', value: user.fullName),
+                      const Divider(),
+                      _ProfileTile(label: 'Username', value: '@${user.username}'),
+                      const Divider(),
+                      _ProfileTile(label: 'Email', value: user.email),
+                      const Divider(),
+                      _ProfileTile(label: 'Phone', value: user.phoneNumber),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_loadingStats)
+                  const Center(child: CircularProgressIndicator())
+                else if (_stats != null)
+                  Row(
+                    children: [
+                      StatCard(icon: Icons.sports_soccer, label: 'Played', value: '${_stats!.tournamentsPlayed}', color: Colors.blue),
+                      const SizedBox(width: 12),
+                      StatCard(icon: Icons.emoji_events, label: 'Won', value: '${_stats!.tournamentsWon}', color: Colors.amber),
+                      const SizedBox(width: 12),
+                      StatCard(icon: Icons.monetization_on, label: 'Prize', value: '${_stats!.prizeMoney} KES', color: Colors.green),
+                    ],
+                  ),
+                if (user.favoriteTeam != null) ...[
+                  const SizedBox(height: 16),
+                  AppCard(
+                    child: ListTile(
+                      leading: const Icon(Icons.star, color: Colors.amber),
+                      title: const Text('Favorite Team'),
+                      subtitle: Text(user.favoriteTeam!),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+                if (user.favoriteGames.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: Text('Favorite Games', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        ),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: user.favoriteGames.map((g) => Chip(
+                            label: Text(g, style: const TextStyle(fontSize: 12)),
+                            visualDensity: VisualDensity.compact,
+                          )).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+              const SizedBox(height: 24),
+              SectionHeader(title: 'Settings'),
+              AppCard(
+                child: Consumer<ThemeProvider>(
+                  builder: (_, themeProv, __) => SwitchListTile(
+                    title: const Text('Dark Mode'),
+                    subtitle: const Text('Toggle dark theme'),
+                    value: themeProv.isDarkMode,
+                    onChanged: (_) => themeProv.toggleTheme(),
+                    secondary: const Icon(Icons.dark_mode),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              AppCard(
+                child: Consumer<AppLockProvider>(
+                  builder: (_, lockProv, __) => SwitchListTile(
+                    title: const Text('App Lock'),
+                    subtitle: Text(
+                      !lockProv.biometricAvailable
+                          ? 'Device security not available'
+                          : lockProv.isEnabled
+                              ? 'Locked with device security'
+                              : 'Secure with biometrics/PIN',
+                    ),
+                    value: lockProv.isEnabled,
+                    onChanged: (v) async {
+                      if (!lockProv.biometricAvailable) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No biometric or device lock set up on this device')),
+                        );
+                        return;
+                      }
+                      if (v) {
+                        final ok = await lockProv.authenticate();
+                        if (!ok) return;
+                      }
+                      await lockProv.toggle(v);
+                    },
+                    secondary: const Icon(Icons.lock_outline),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final service = UpdateService();
+                    final info = await service.checkForUpdate();
+                    if (!mounted) return;
+                    if (info != null) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => UpdateDialog(updateInfo: info),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('You\'re on the latest version')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.system_update_outlined),
+                  label: const Text('Check for Updates'),
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (!_isEditing) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _startEditing,
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Edit Profile'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.lock),
+                    label: const Text('Change Password'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _logout,
+                    icon: const Icon(Icons.logout, color: Colors.red),
+                    label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProfileTile extends StatelessWidget {
+  final String label;
+  final String value;
+  const _ProfileTile({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text('$label: ', style: const TextStyle(color: Colors.grey)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+        ],
+      ),
+    );
+  }
+}

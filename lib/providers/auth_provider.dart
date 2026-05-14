@@ -1,0 +1,124 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_model.dart';
+import '../services/auth_service.dart';
+
+class AuthProvider extends ChangeNotifier {
+  final AuthService _authService = AuthService();
+
+  UserModel? _user;
+  List<UserModel> _allUsers = [];
+  bool _isLoading = false;
+  String? _error;
+
+  UserModel? get user => _user;
+  List<UserModel> get allUsers => _allUsers;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  bool get isLoggedIn => _user != null;
+  bool get isAdmin => _user?.isAdmin ?? false;
+  bool get isSuperAdmin => _user?.isSuperAdmin ?? false;
+
+  bool _authResolved = false;
+
+  bool get authResolved => _authResolved;
+
+  AuthProvider() {
+    _authService.authState.listen(_onAuthStateChanged);
+  }
+
+  void _onAuthStateChanged(User? firebaseUser) async {
+    if (firebaseUser == null) {
+      _user = null;
+      _authResolved = true;
+      notifyListeners();
+      return;
+    }
+    final doc = await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).get();
+    if (doc.exists) {
+      _user = UserModel.fromMap(doc.data()!, doc.id);
+    }
+    _authResolved = true;
+    notifyListeners();
+  }
+
+  Future<bool> signUp({
+    required String fullName,
+    required String email,
+    required String username,
+    required String phoneNumber,
+    required String password,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _user = await _authService.signUp(
+        fullName: fullName,
+        email: email,
+        username: username,
+        phoneNumber: phoneNumber,
+        password: password,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> signIn({
+    required String email,
+    required String password,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _user = await _authService.signIn(email: email, password: password);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> signOut() async {
+    await _authService.signOut();
+    _user = null;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  Future<void> loadAllUsers() async {
+    _allUsers = await _authService.getAllUsers();
+    notifyListeners();
+  }
+
+  Future<void> updateUserRole(String uid, UserRole role, List<String> permissions) async {
+    await _authService.updateUserRole(uid, role, permissions);
+    await loadAllUsers();
+  }
+
+  Future<void> refreshUser() async {
+    if (_user == null) return;
+    final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
+    if (doc.exists) {
+      _user = UserModel.fromMap(doc.data()!, doc.id);
+      notifyListeners();
+    }
+  }
+}
