@@ -440,3 +440,51 @@ exports.b2cResult = onRequest((req, res) => {
   console.log('B2C Result:', JSON.stringify(req.body, null, 2));
   res.json({ ResultCode: 0 });
 });
+
+// ===================================================================
+// 9. Delete Account
+// ===================================================================
+exports.deleteAccount = onCall({ enforceAppCheck: false }, async (request) => {
+  assertAuth(request);
+  const userId = request.auth.uid;
+
+  // Delete all user data
+  const batch = db.batch();
+
+  // User doc
+  batch.delete(db.collection('users').doc(userId));
+
+  // Wallet
+  batch.delete(db.collection('wallets').doc(userId));
+
+  // FCM tokens
+  const tokenSnap = await db.collection('fcm_tokens').where('userId', '==', userId).get();
+  tokenSnap.docs.forEach(d => batch.delete(d.ref));
+
+  // Participations
+  const partSnap = await db.collection('participations').where('userId', '==', userId).get();
+  partSnap.docs.forEach(d => batch.delete(d.ref));
+
+  // Follows (as follower)
+  const followSnap = await db.collection('follows').where('followerId', '==', userId).get();
+  followSnap.docs.forEach(d => batch.delete(d.ref));
+
+  // Follows (as followed)
+  const followedSnap = await db.collection('follows').where('followingId', '==', userId).get();
+  followedSnap.docs.forEach(d => batch.delete(d.ref));
+
+  // Forum messages
+  const forumSnap = await db.collection('forum_messages').where('userId', '==', userId).get();
+  forumSnap.docs.forEach(d => batch.delete(d.ref));
+
+  // Transactions
+  const txSnap = await db.collection('transactions').where('userId', '==', userId).get();
+  txSnap.docs.forEach(d => batch.delete(d.ref));
+
+  await batch.commit();
+
+  // Delete Firebase Auth account
+  await admin.auth().deleteUser(userId);
+
+  return { success: true };
+});

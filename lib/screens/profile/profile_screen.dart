@@ -1,19 +1,23 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/app_lock_provider.dart';
 import '../../services/user_service.dart';
 import '../../services/user_stats_service.dart';
+import '../../services/account_service.dart';
+import '../../services/update_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/game_selector.dart';
 import '../../widgets/team_selector.dart';
-import '../login_screen.dart';
-import '../../services/update_service.dart';
 import '../../widgets/update_dialog.dart';
+import '../login_screen.dart';
+import 'privacy_screen.dart';
 
 class AvatarData {
   final IconData icon;
@@ -284,6 +288,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account, wallet, and all data. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete Everything'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final service = AccountService();
+    final deleted = await service.deleteAccount();
+    if (!mounted) return;
+
+    if (deleted) {
+      await context.read<AuthProvider>().signOut();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account deleted successfully')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete account. Try again later.'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   Future<void> _logout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -548,6 +596,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: () {},
                     icon: const Icon(Icons.lock),
                     label: const Text('Change Password'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                    ),
+                    icon: const Icon(Icons.description_outlined),
+                    label: const Text('Privacy & Terms'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => launchUrl(
+                      Uri.parse('mailto:sheldonramu8@gmail.com?subject=Tournaments%20Support'),
+                    ),
+                    icon: const Icon(Icons.support_outlined),
+                    label: const Text('Contact Support'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _confirmDeleteAccount,
+                    icon: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+                    label: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                   ),
                 ),
                 const SizedBox(height: 16),
