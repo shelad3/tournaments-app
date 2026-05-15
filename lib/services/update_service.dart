@@ -27,10 +27,8 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  // Change this to your GitHub raw JSON URL after creating your repo
-  // See: https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/version.json
   static const String versionCheckUrl =
-      'https://raw.githubusercontent.com/sheldonramu8/tournaments-app/main/version.json';
+      'https://raw.githubusercontent.com/shelad3/tournaments-app/main/version.json';
 
   Future<PackageInfo> _getPackageInfo() => PackageInfo.fromPlatform();
 

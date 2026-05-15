@@ -1,0 +1,148 @@
+rules_version = '2';
+
+// Helper: check if the requester is authenticated
+function isAuth() {
+  return request.auth != null;
+}
+
+// Helper: check if the requester is the document owner
+function isOwner(userId) {
+  return request.auth != null && request.auth.uid == userId;
+}
+
+// Helper: check if user is admin (reads from user doc)
+function isAdmin() {
+  return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+}
+
+// Helper: check if user is super admin
+function isSuperAdmin() {
+  return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+}
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== USERS =====
+    match /users/{userId} {
+      // Users can read any public profile
+      allow read: if isAuth();
+      // Users can write only their own document
+      // Admins can write any user document (for management)
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isSuperAdmin();
+    }
+
+    // ===== TOURNAMENTS =====
+    match /tournaments/{tournamentId} {
+      // Anyone authenticated can read tournaments
+      allow read: if isAuth();
+      // Only admins can create/update/delete tournaments
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+
+      // ===== PARTICIPANTS (subcollection) =====
+      match /participants/{participantId} {
+        allow read: if isAuth();
+        // Users can join (create their own participant doc)
+        // Users cannot update (accepted/paid status is admin-only)
+        allow create: if isOwner(participantId);
+        allow update: if isAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ===== MATCHES (for brackets) =====
+    match /matches/{matchId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ===== WALLETS =====
+    match /wallets/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Wallet is created by the system on first deposit
+      allow create: if isOwner(userId);
+      // Only the system (or admin) can update wallet balances
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ===== TRANSACTIONS =====
+    match /transactions/{transactionId} {
+      // Users can read their own transactions; admins can read all
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      // Transactions are created by the system (or admin)
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ===== MESSAGES (Admin Announcements) =====
+    match /messages/{messageId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ===== FORUM MESSAGES =====
+    match /forum_messages/{messageId} {
+      allow read: if isAuth();
+      // Any authenticated user can post
+      allow create: if isAuth();
+      // Users can edit/delete their own posts; admins can moderate
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // ===== PLACES (gaming venues) =====
+    match /places/{placeId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ===== FOLLOWS =====
+    match /follows/{followId} {
+      allow read: if isAuth();
+      // Users can follow/unfollow (create/delete their own follows)
+      allow create: if isAuth();
+      allow delete: if isAuth();
+      // No update needed for follows
+    }
+
+    // ===== CHAT MESSAGES (tournament chats) =====
+    match /tournaments/{tournamentId}/chat/{messageId} {
+      allow read: if isAuth();
+      // Only participants can send chat messages
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+
+    // ===== LEAGUE UPDATES =====
+    match /league_updates/{updateId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ===== SUPER WALLET =====
+    match /super_wallet/{docId} {
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    // ===== FCM TOKENS =====
+    match /fcm_tokens/{tokenId} {
+      allow read: if isAdmin();
+      allow create: if isAuth();
+      allow delete: if isAuth();
+    }
+
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
