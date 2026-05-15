@@ -69,6 +69,37 @@ class AuthService {
   Future<void> resetPassword(String email) =>
       _auth.sendPasswordResetEmail(email: email);
 
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user != null) await user.sendEmailVerification();
+  }
+
+  Future<bool> isEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || user.email == null) return false;
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<List<UserModel>> getAllUsers() async {
     final snap = await _firestore.collection('users').get();
     return snap.docs.map((doc) => UserModel.fromMap(doc.data(), doc.id)).toList();

@@ -406,6 +406,54 @@ class _WalletTab extends StatelessWidget {
                   child: Text('Minimum withdrawal: ${WalletService.minWithdrawal} KES',
                       style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 12)),
                 ),
+              const SizedBox(height: 24),
+              AppCard.spacious(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                        const SizedBox(width: 6),
+                        Text('Fees & Limits', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue.shade800)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _FeeRow(label: 'Platform Fee', detail: '~16.7% added to tournament entry fee'),
+                    _FeeRow(label: 'Min Deposit', detail: '${WalletService.minDepositPerTransaction} KES per transaction'),
+                    _FeeRow(label: 'Min Withdrawal', detail: '${WalletService.minWithdrawal} KES'),
+                    const SizedBox(height: 8),
+                    const Text('Withdrawal Fees (Betika-style):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    _FeeRow(label: '50 – 1,000 KES', detail: '15 KES fee'),
+                    _FeeRow(label: '1,001 – 5,000 KES', detail: '30 KES fee'),
+                    _FeeRow(label: '5,001+ KES', detail: '50 KES fee'),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.warning_amber_rounded, size: 14, color: Colors.amber.shade800),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Withdrawals can only be sent to your registered phone number. '
+                              'Fees are deducted from the withdrawal amount.',
+                              style: TextStyle(fontSize: 11, color: Colors.amber.shade900, height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         );
@@ -496,5 +544,36 @@ Color _txnColor(TransactionType type) {
     case TransactionType.platformFee: return Colors.orange;
     case TransactionType.prizeWon: return Colors.amber;
     case TransactionType.withdrawal: return Colors.red;
+  }
+}
+
+class _FeeRow extends StatelessWidget {
+  final String label;
+  final String detail;
+  const _FeeRow({required this.label, required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 12, child: Text('•', style: TextStyle(color: Colors.grey.shade600, fontSize: 12))),
+          const SizedBox(width: 6),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4),
+                children: [
+                  TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  TextSpan(text: detail),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

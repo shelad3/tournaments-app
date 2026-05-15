@@ -82,14 +82,20 @@ class _TournamentChatScreenState extends State<TournamentChatScreen> {
     if (!auth.isLoggedIn) return;
     final image = await _imagePicker.pickImage(source: ImageSource.gallery);
     if (image == null) return;
-    await _service.sendImageMessage(
+    final ok = await _service.sendImageMessage(
       tournamentId: widget.tournamentId,
       userId: auth.user!.uid,
       userName: auth.user!.fullName,
       userPhotoUrl: auth.user!.photoUrl,
       image: image,
     );
-    _scrollToBottom();
+    if (ok) {
+      _scrollToBottom();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send image. Check your connection.'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override

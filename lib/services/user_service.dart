@@ -17,9 +17,13 @@ class UserService {
       _firestore.collection('users').doc(uid).update(data);
 
   Future<String?> uploadProfileImage(String uid, XFile image) async {
-    final ref = _storage.ref().child('profile_pics/$uid');
-    await ref.putData(await image.readAsBytes());
-    return await ref.getDownloadURL();
+    try {
+      final ref = _storage.ref().child('profile_pics/$uid');
+      await ref.putData(await image.readAsBytes(), SettableMetadata(contentType: 'image/jpeg'));
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<bool> isUsernameTaken(String username) async {

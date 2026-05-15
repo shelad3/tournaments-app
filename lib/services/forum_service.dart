@@ -49,53 +49,63 @@ class ForumService {
             type: ForumMessageType.text,
           ).toMap());
 
-  Future<void> sendImageMessage({
+  Future<bool> sendImageMessage({
     required String channelId,
     required String userId,
     required String userName,
     String? userPhotoUrl,
     required XFile image,
   }) async {
-    final ref = _storage.ref().child('forum_images/${DateTime.now().millisecondsSinceEpoch}');
-    await ref.putData(await image.readAsBytes());
-    final url = await ref.getDownloadURL();
-    await _firestore
-        .collection('forum_channels')
-        .doc(channelId)
-        .collection('messages')
-        .add(ForumMessageModel(
-          id: '',
-          userId: userId,
-          userName: userName,
-          userPhotoUrl: userPhotoUrl,
-          imageUrl: url,
-          type: ForumMessageType.image,
-        ).toMap());
+    try {
+      final ref = _storage.ref().child('forum_images/${DateTime.now().millisecondsSinceEpoch}');
+      await ref.putData(await image.readAsBytes(), SettableMetadata(contentType: 'image/jpeg'));
+      final url = await ref.getDownloadURL();
+      await _firestore
+          .collection('forum_channels')
+          .doc(channelId)
+          .collection('messages')
+          .add(ForumMessageModel(
+            id: '',
+            userId: userId,
+            userName: userName,
+            userPhotoUrl: userPhotoUrl,
+            imageUrl: url,
+            type: ForumMessageType.image,
+          ).toMap());
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  Future<void> sendVoiceMessage({
+  Future<bool> sendVoiceMessage({
     required String channelId,
     required String userId,
     required String userName,
     String? userPhotoUrl,
     required String voiceFilePath,
   }) async {
-    final file = File(voiceFilePath);
-    final ref = _storage.ref().child('forum_voice/${DateTime.now().millisecondsSinceEpoch}.m4a');
-    await ref.putFile(file);
-    final url = await ref.getDownloadURL();
-    await _firestore
-        .collection('forum_channels')
-        .doc(channelId)
-        .collection('messages')
-        .add(ForumMessageModel(
-          id: '',
-          userId: userId,
-          userName: userName,
-          userPhotoUrl: userPhotoUrl,
-          voiceUrl: url,
-          type: ForumMessageType.voice,
-        ).toMap());
+    try {
+      final file = File(voiceFilePath);
+      final ref = _storage.ref().child('forum_voice/${DateTime.now().millisecondsSinceEpoch}.m4a');
+      await ref.putFile(file, SettableMetadata(contentType: 'audio/m4a'));
+      final url = await ref.getDownloadURL();
+      await _firestore
+          .collection('forum_channels')
+          .doc(channelId)
+          .collection('messages')
+          .add(ForumMessageModel(
+            id: '',
+            userId: userId,
+            userName: userName,
+            userPhotoUrl: userPhotoUrl,
+            voiceUrl: url,
+            type: ForumMessageType.voice,
+          ).toMap());
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> createChannel(String name, String createdBy) async {

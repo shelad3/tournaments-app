@@ -118,11 +118,64 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildAllTournaments(),
-          _buildRegisteredTournaments(),
+          Consumer<AuthProvider>(
+            builder: (_, auth, __) {
+              if (!auth.isLoggedIn || auth.user!.emailVerified) return const SizedBox.shrink();
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: Colors.orange.shade50,
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange.shade800),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Verify your email to join paid tournaments.',
+                        style: TextStyle(color: Colors.orange.shade900, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await auth.sendVerificationEmail();
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Verification email sent! Check your inbox.')),
+                        );
+                      },
+                      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                      child: const Text('Resend', style: TextStyle(fontSize: 12)),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final verified = await auth.checkEmailVerification();
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(verified ? 'Email verified!' : 'Not verified yet. Check your email.'),
+                            backgroundColor: verified ? Colors.green : Colors.orange,
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                      child: const Text('Check', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildAllTournaments(),
+                _buildRegisteredTournaments(),
+              ],
+            ),
+          ),
         ],
       ),
     );

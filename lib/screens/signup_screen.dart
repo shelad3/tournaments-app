@@ -63,6 +63,15 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     );
     if (!mounted) return;
     if (success) {
+      await auth.sendVerificationEmail();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created! Check your email for verification link.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 5),
+        ),
+      );
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const MainShell()),

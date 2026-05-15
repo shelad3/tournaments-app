@@ -34,23 +34,28 @@ class TournamentChatService {
         type: ForumMessageType.text,
       ).toMap());
 
-  Future<void> sendImageMessage({
+  Future<bool> sendImageMessage({
     required String tournamentId,
     required String userId,
     required String userName,
     String? userPhotoUrl,
     required XFile image,
   }) async {
-    final ref = _storage.ref().child('tournament_chat_images/${DateTime.now().millisecondsSinceEpoch}');
-    await ref.putData(await image.readAsBytes());
-    final url = await ref.getDownloadURL();
-    await _chatRef(tournamentId).add(ForumMessageModel(
-      id: '',
-      userId: userId,
-      userName: userName,
-      userPhotoUrl: userPhotoUrl,
-      imageUrl: url,
-      type: ForumMessageType.image,
-    ).toMap());
+    try {
+      final ref = _storage.ref().child('tournament_chat_images/${DateTime.now().millisecondsSinceEpoch}');
+      await ref.putData(await image.readAsBytes(), SettableMetadata(contentType: 'image/jpeg'));
+      final url = await ref.getDownloadURL();
+      await _chatRef(tournamentId).add(ForumMessageModel(
+        id: '',
+        userId: userId,
+        userName: userName,
+        userPhotoUrl: userPhotoUrl,
+        imageUrl: url,
+        type: ForumMessageType.image,
+      ).toMap());
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

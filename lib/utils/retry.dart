@@ -11,7 +11,7 @@ Future<T> retry<T>(
       return await fn();
     } catch (e) {
       if (attempt == maxAttempts) rethrow;
-      if (retryableErrors != null && !retryableErrors.any((t) => t.isInstanceOfType(e.runtimeType))) {
+      if (retryableErrors != null && !retryableErrors.any((t) => e.runtimeType == t)) {
         rethrow;
       }
       await Future.delayed(baseDelay * (1 << (attempt - 1)));

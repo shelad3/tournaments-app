@@ -105,6 +105,36 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> sendVerificationEmail() async {
+    await _authService.sendEmailVerification();
+  }
+
+  Future<bool> checkEmailVerification() async {
+    final verified = await _authService.isEmailVerified();
+    if (verified && _user != null && !_user!.emailVerified) {
+      await FirebaseFirestore.instance.collection('users').doc(_user!.uid).update({'emailVerified': true});
+      _user = UserModel(
+        uid: _user!.uid,
+        fullName: _user!.fullName,
+        email: _user!.email,
+        username: _user!.username,
+        phoneNumber: _user!.phoneNumber,
+        photoUrl: _user!.photoUrl,
+        favoriteTeam: _user!.favoriteTeam,
+        favoriteGames: _user!.favoriteGames,
+        role: _user!.role,
+        permissions: _user!.permissions,
+        maxEntryFee: _user!.maxEntryFee,
+        maxDailyTournaments: _user!.maxDailyTournaments,
+        approvalRequired: _user!.approvalRequired,
+        emailVerified: true,
+        createdAt: _user!.createdAt,
+      );
+      notifyListeners();
+    }
+    return verified;
+  }
+
   Future<void> loadAllUsers() async {
     _allUsers = await _authService.getAllUsers();
     notifyListeners();

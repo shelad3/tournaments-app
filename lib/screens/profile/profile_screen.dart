@@ -2,27 +2,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/theme_provider.dart';
-import '../../providers/app_lock_provider.dart';
 import '../../services/user_service.dart';
 import '../../services/user_stats_service.dart';
-import '../../services/account_service.dart';
-import '../../services/update_service.dart';
 import '../../services/tier_service.dart';
+import '../../services/account_service.dart';
 import '../../models/user_tier.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/game_selector.dart';
 import '../../widgets/team_selector.dart';
-import '../../widgets/update_dialog.dart';
 import '../login_screen.dart';
-import 'privacy_screen.dart';
 import 'tournament_history_screen.dart';
 import 'player_stats_screen.dart';
+import 'settings_screen.dart';
 
 class AvatarData {
   final IconData icon;
@@ -284,11 +279,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final auth = context.read<AuthProvider>();
     final url = await _userService.uploadProfileImage(auth.user!.uid, image);
+    if (!mounted) return;
     if (url != null) {
       await _userService.updateUser(auth.user!.uid, {'photoUrl': url});
+      await auth.refreshUser();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile picture updated!'), backgroundColor: Colors.green),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to upload image. Check your connection.'), backgroundColor: Colors.red),
       );
     }
   }
@@ -367,6 +368,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
+          if (!_isEditing)
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            ),
           if (_isEditing) ...[
             IconButton(
               icon: const Icon(Icons.close),
@@ -579,134 +586,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ],
-              const SizedBox(height: 24),
-              SectionHeader(title: 'Settings'),
-              AppCard(
-                child: Consumer<ThemeProvider>(
-                  builder: (_, themeProv, __) => SwitchListTile(
-                    title: const Text('Dark Mode'),
-                    subtitle: const Text('Toggle dark theme'),
-                    value: themeProv.isDarkMode,
-                    onChanged: (_) => themeProv.toggleTheme(),
-                    secondary: const Icon(Icons.dark_mode),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              AppCard(
-                child: Consumer<AppLockProvider>(
-                  builder: (_, lockProv, __) => SwitchListTile(
-                    title: const Text('App Lock'),
-                    subtitle: Text(
-                      !lockProv.biometricAvailable
-                          ? 'Device security not available'
-                          : lockProv.isEnabled
-                              ? 'Locked with device security'
-                              : 'Secure with biometrics/PIN',
-                    ),
-                    value: lockProv.isEnabled,
-                    onChanged: (v) async {
-                      if (!lockProv.biometricAvailable) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('No biometric or device lock set up on this device')),
-                        );
-                        return;
-                      }
-                      if (v) {
-                        final ok = await lockProv.authenticate();
-                        if (!ok) return;
-                      }
-                      await lockProv.toggle(v);
-                    },
-                    secondary: const Icon(Icons.lock_outline),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final service = UpdateService();
-                    final info = await service.checkForUpdate();
-                    if (!mounted) return;
-                    if (info != null) {
-                      showDialog(
-                        context: context,
-                        builder: (_) => UpdateDialog(updateInfo: info),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('You\'re on the latest version')),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.system_update_outlined),
-                  label: const Text('Check for Updates'),
-                ),
-              ),
-              const SizedBox(height: 24),
               if (!_isEditing) ...[
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _startEditing,
                     icon: const Icon(Icons.edit),
                     label: const Text('Edit Profile'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.lock),
-                    label: const Text('Change Password'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PrivacyScreen()),
-                    ),
-                    icon: const Icon(Icons.description_outlined),
-                    label: const Text('Privacy & Terms'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => launchUrl(
-                      Uri.parse('mailto:sheldonramu8@gmail.com?subject=Tournaments%20Support'),
-                    ),
-                    icon: const Icon(Icons.support_outlined),
-                    label: const Text('Contact Support'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _confirmDeleteAccount,
-                    icon: const Icon(Icons.delete_forever_outlined, color: Colors.red),
-                    label: const Text('Delete Account', style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout, color: Colors.red),
-                    label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                   ),
                 ),
               ],
