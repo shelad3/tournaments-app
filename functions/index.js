@@ -1,5 +1,4 @@
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { defineString } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const axios = require('axios');
@@ -58,9 +57,7 @@ function assertAuth(context) {
 // ===================================================================
 // 1. STK Push (Deposit)
 // ===================================================================
-exports.stkPush = onCall(
-  { secrets: ['MPESA_CONSUMER_KEY', 'MPESA_CONSUMER_SECRET', 'MPESA_PASSKEY', 'MPESA_SHORTCODE', 'MPESA_ENVIRONMENT'] },
-  async (request) => {
+exports.stkPush = onCall(async (request) => {
     assertAuth(request);
     const { phone, amount, transactionRef } = request.data;
     if (!phone || !amount || !transactionRef) {
@@ -121,9 +118,7 @@ exports.stkPush = onCall(
 // ===================================================================
 // 2. M-Pesa Callback (HTTP endpoint — Safaricom POSTs here)
 // ===================================================================
-exports.mpesaCallback = onRequest(
-  { secrets: ['MPESA_CONSUMER_KEY', 'MPESA_CONSUMER_SECRET', 'MPESA_PASSKEY', 'MPESA_SHORTCODE', 'MPESA_ENVIRONMENT'] },
-  async (req, res) => {
+exports.mpesaCallback = onRequest(async (req, res) => {
     try {
       const { Body } = req.body;
       if (!Body?.stkCallback) return res.json({ ResultCode: 1 });
@@ -193,9 +188,7 @@ exports.checkTransactionStatus = onCall(async (request) => {
 // ===================================================================
 // 4. Withdrawal (B2C)
 // ===================================================================
-exports.withdraw = onCall(
-  { secrets: ['MPESA_CONSUMER_KEY', 'MPESA_CONSUMER_SECRET', 'MPESA_PASSKEY', 'MPESA_SHORTCODE', 'MPESA_ENVIRONMENT'] },
-  async (request) => {
+exports.withdraw = onCall(async (request) => {
     assertAuth(request);
     const { phone, amount } = request.data;
     const userId = request.auth.uid;

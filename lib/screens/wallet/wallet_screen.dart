@@ -243,24 +243,18 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    final result = await _mpesaService.b2cPayment(
-      phone: '254${phone.substring(phone.length - 9)}',
-      amount: amount,
-      userId: auth.user!.uid,
-    );
+    final success = await walletProv.withdraw(auth.user!.uid, amount);
 
     if (!mounted) return;
     Navigator.pop(context);
 
-    if (result.success) {
-      await walletProv.withdraw(auth.user!.uid, amount);
-      if (!mounted) return;
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Withdrawal sent to your M-Pesa!'), backgroundColor: Colors.green),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message ?? 'Withdrawal failed'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Withdrawal failed'), backgroundColor: Colors.red),
       );
     }
   }
