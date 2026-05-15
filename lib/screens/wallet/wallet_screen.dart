@@ -113,12 +113,10 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    final auth = context.read<AuthProvider>();
     final ref = 'DEP${DateTime.now().millisecondsSinceEpoch}';
     final result = await _mpesaService.stkPush(
       phone: '254${phone.substring(phone.length - 9)}',
       amount: amount,
-      userId: auth.user!.uid,
       transactionRef: ref,
     );
 

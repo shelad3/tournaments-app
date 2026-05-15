@@ -1,0 +1,19 @@
+{
+  "name": "fc-tournaments-functions",
+  "version": "1.0.0",
+  "description": "Cloud Functions for FC Tournaments",
+  "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.0.0",
+    "axios": "^1.7.0"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "private": true
+}

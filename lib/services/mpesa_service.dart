@@ -1,6 +1,4 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../config/app_config.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class MpesaResponse {
   final bool success;
@@ -11,56 +9,27 @@ class MpesaResponse {
 }
 
 class MpesaService {
-  final String baseUrl = AppConfig.mpesaBackendUrl;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   Future<MpesaResponse> stkPush({
     required String phone,
     required int amount,
-    required String userId,
     required String transactionRef,
   }) async {
     try {
-      final res = await http.post(
-        Uri.parse('$baseUrl/api/mpesa/stkpush'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'phone': phone,
-          'amount': amount,
-          'userId': userId,
-          'transactionRef': transactionRef,
-        }),
-      );
-      final data = jsonDecode(res.body);
+      final result = await _functions.httpsCallable('stkPush').call({
+        'phone': phone,
+        'amount': amount,
+        'transactionRef': transactionRef,
+      });
+      final data = result.data as Map<String, dynamic>;
       return MpesaResponse(
         success: data['success'] == true,
         checkoutRequestId: data['checkoutRequestId'],
-        message: data['responseDescription'] ?? data['error'],
+        message: data['responseDescription'],
       );
-    } catch (e) {
-      return MpesaResponse(success: false, message: e.toString());
-    }
-  }
-
-  Future<MpesaResponse> b2cPayment({
-    required String phone,
-    required int amount,
-    required String userId,
-  }) async {
-    try {
-      final res = await http.post(
-        Uri.parse('$baseUrl/api/mpesa/b2c'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'phone': phone,
-          'amount': amount,
-          'userId': userId,
-        }),
-      );
-      final data = jsonDecode(res.body);
-      return MpesaResponse(
-        success: data['success'] == true,
-        message: data['message'] ?? data['error'],
-      );
+    } on FirebaseFunctionsException catch (e) {
+      return MpesaResponse(success: false, message: e.message ?? e.code);
     } catch (e) {
       return MpesaResponse(success: false, message: e.toString());
     }
@@ -68,9 +37,9 @@ class MpesaService {
 
   Future<String> checkStatus(String ref) async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/api/mpesa/status/$ref'));
-      final data = jsonDecode(res.body);
-      return data['status'] ?? 'unknown';
+      final result = await _functions.httpsCallable('checkTransactionStatus').call({'ref': ref});
+      final data = result.data as Map<String, dynamic>;
+      return data['status'] as String? ?? 'unknown';
     } catch (_) {
       return 'unknown';
     }
