@@ -1,6 +1,6 @@
 {
   "latestVersion": "1.3.0",
-  "latestBuildNumber": 5,
+  "latestBuildNumber": 6,
   "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.3.0/app-release.apk",
   "changelog": "Tournament History: View past tournaments with win/loss results\nCheck-in System: Check in before tournament starts\nAdmin check-in: Admins can check in / undo check-in for any player\nPlayer stats page from profile\nNotification bell with unread badge\nMatch scheduling with proposals & countdown\nForum channels with admin-created channels\nMatch result reporting with mutual confirmation\nFirestore stream timeouts with retry UI"
 }
