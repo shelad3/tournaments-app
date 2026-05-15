@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.4.0",
-  "latestBuildNumber": 7,
-  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.4.0/app-release.apk",
-  "changelog": "Admin hierarchy with Sub Admin tiers (max fee, daily limit, approval)\nUser tier system: Bronze/Silver/Gold/Platinum with requirements\nPrize distribution: 1st/2nd/3rd place percentage split\nWaiting list: Join/leave queue with auto-promote\nEmail verification gate for paid tournaments\nTier-restricted tournaments with lock badge\nFirestore rules fixed: participations, matches, chat, notifications, forum, waiting list\nComposite indexes added for faster queries"
+  "latestVersion": "1.4.1",
+  "latestBuildNumber": 8,
+  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.4.1/app-release.apk",
+  "changelog": "Email verification: send/check/resend from signup, home banner, and settings\nSettings screen: change password, dark mode, app lock, what's new, upcoming features\nWallet: fees & limits info section\nError handling: image uploads in chat/forum/profile with user feedback\nBug fixes: retry utility, missing _FeeRow widget"
 }
