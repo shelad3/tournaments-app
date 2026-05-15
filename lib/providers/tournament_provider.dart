@@ -13,6 +13,7 @@ class TournamentProvider extends ChangeNotifier {
   Map<String, Map<String, int>> _participantCounts = {};
   bool _isLoading = false;
   bool _hasLoaded = false;
+  bool _userParticipationsLoaded = false;
   String? _error;
 
   List<TournamentModel> get tournaments => _tournaments;
@@ -20,6 +21,7 @@ class TournamentProvider extends ChangeNotifier {
   Map<String, Map<String, int>> get participantCounts => _participantCounts;
   bool get isLoading => _isLoading;
   bool get hasLoaded => _hasLoaded;
+  bool get userParticipationsLoaded => _userParticipationsLoaded;
   String? get error => _error;
 
   List<TournamentModel> get myTournaments {
@@ -49,9 +51,10 @@ class TournamentProvider extends ChangeNotifier {
   }
 
   void loadUserParticipations(String userId) {
+    _userParticipationsLoaded = false;
     _service.getUserParticipations(userId).listen((participations) {
       _userParticipations = participations;
-      _hasLoaded = true;
+      _userParticipationsLoaded = true;
       notifyListeners();
     });
   }

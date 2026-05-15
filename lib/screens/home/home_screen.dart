@@ -168,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return Consumer2<TournamentProvider, AuthProvider>(
       builder: (_, provider, auth, __) {
         final mine = provider.myTournaments;
-        if (!provider.hasLoaded) {
+        if (!provider.hasLoaded || !provider.userParticipationsLoaded) {
           return const ShimmerList(itemHeight: 180);
         }
         final filtered = _applyFilters(mine);

@@ -9,6 +9,7 @@ class LeaderboardService {
     final tournamentsSnap = await _firestore.collection('tournaments').get();
     final Map<String, int> wins = {};
     final Map<String, int> prizeMoney = {};
+    final Set<String> allParticipantIds = {};
 
     for (var tDoc in tournamentsSnap.docs) {
       final tData = tDoc.data();
@@ -23,6 +24,15 @@ class LeaderboardService {
             .where('paid', isEqualTo: true)
             .get();
         paidCount = partsSnap.docs.length;
+      }
+
+      final participationsSnap = await _firestore
+          .collection('participations')
+          .where('tournamentId', isEqualTo: tDoc.id)
+          .where('accepted', isEqualTo: true)
+          .get();
+      for (var pDoc in participationsSnap.docs) {
+        allParticipantIds.add(pDoc.data()['userId'] as String);
       }
 
       final matchesSnap = await _firestore
@@ -45,7 +55,7 @@ class LeaderboardService {
       }
     }
 
-    final userIds = {...wins.keys, ...prizeMoney.keys};
+    final userIds = {...wins.keys, ...prizeMoney.keys, ...allParticipantIds};
 
     final Map<String, UserModel> users = {};
     for (var uid in userIds) {

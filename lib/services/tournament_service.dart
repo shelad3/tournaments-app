@@ -20,7 +20,11 @@ class TournamentService {
         .where('userId', isEqualTo: participation.userId)
         .where('tournamentId', isEqualTo: participation.tournamentId)
         .get();
-    if (existing.docs.isNotEmpty) return false;
+    if (existing.docs.isNotEmpty) {
+      final doc = existing.docs.first;
+      if (doc.data()['accepted'] == true) return false;
+      await doc.reference.delete();
+    }
     await _firestore.collection('participations').add(participation.toMap());
     return true;
   }
