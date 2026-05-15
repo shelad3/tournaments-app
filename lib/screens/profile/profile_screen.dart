@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/app_lock_provider.dart';
@@ -10,6 +11,8 @@ import '../../services/user_service.dart';
 import '../../services/user_stats_service.dart';
 import '../../services/account_service.dart';
 import '../../services/update_service.dart';
+import '../../services/tier_service.dart';
+import '../../models/user_tier.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/stat_card.dart';
@@ -538,6 +541,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: const Text('Tournament History'),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      _buildTierSection(user),
                     ],
                   ),
                 if (user.favoriteTeam != null) ...[
@@ -708,6 +713,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTierSection(UserModel user) {
+    final stats = _stats;
+    if (stats == null) return const SizedBox.shrink();
+    final tierService = TierService();
+    final accountAge = DateTime.now().difference(user.createdAt).inDays;
+    final currentTier = tierService.calculateTier(
+      stats: stats,
+      accountAgeDays: accountAge,
+      emailVerified: user.emailVerified,
+    );
+    final nextTier = currentTier.next;
+    final progress = tierService.progressToNext(stats, accountAge, user.emailVerified);
+    final reqs = tierService.getRequirementsForNext(stats, accountAge, user.emailVerified);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(currentTier.iconPath, style: const TextStyle(fontSize: 24)),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${currentTier.label} Tier', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  if (nextTier != currentTier)
+                    Text('Next: ${nextTier.label}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                ],
+              ),
+            ],
+          ),
+          if (nextTier != currentTier) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+                backgroundColor: Colors.grey.shade200,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('Requirements for next tier:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 4),
+            ...reqs.map((r) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Icon(r.met ? Icons.check_circle : Icons.circle_outlined, size: 16, color: r.met ? Colors.green : Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(r.label, style: TextStyle(fontSize: 13, color: r.met ? Colors.green : Colors.grey.shade700)),
+                  const Spacer(),
+                  Text('${r.current}/${r.target}', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            )),
+          ],
+        ],
       ),
     );
   }

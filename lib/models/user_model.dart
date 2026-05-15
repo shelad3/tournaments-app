@@ -14,6 +14,7 @@ class UserModel {
   final int? maxEntryFee;
   final int? maxDailyTournaments;
   final bool approvalRequired;
+  final bool emailVerified;
   final DateTime createdAt;
 
   UserModel({
@@ -30,6 +31,7 @@ class UserModel {
     this.maxEntryFee,
     this.maxDailyTournaments,
     this.approvalRequired = false,
+    this.emailVerified = false,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -64,6 +66,7 @@ class UserModel {
     'maxEntryFee': maxEntryFee,
     'maxDailyTournaments': maxDailyTournaments,
     'approvalRequired': approvalRequired,
+    'emailVerified': emailVerified,
     'createdAt': createdAt,
   };
 
@@ -81,6 +84,7 @@ class UserModel {
     maxEntryFee: map['maxEntryFee'],
     maxDailyTournaments: map['maxDailyTournaments'],
     approvalRequired: map['approvalRequired'] ?? false,
+    emailVerified: map['emailVerified'] ?? false,
     createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
   );
 

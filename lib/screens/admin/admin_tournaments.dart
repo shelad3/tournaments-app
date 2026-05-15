@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/tournament_model.dart';
 import '../../models/user_model.dart';
+import '../../models/user_tier.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/game_selector.dart';
 
@@ -187,6 +188,10 @@ class AdminTournaments extends StatelessWidget {
     String? platform = tournament?.platform;
     final minCtrl = TextEditingController(text: tournament?.minParticipants?.toString() ?? '');
     final maxCtrl = TextEditingController(text: tournament?.maxParticipants?.toString() ?? '');
+    String minTier = tournament?.minTier ?? 'bronze';
+    final firstPrizeCtrl = TextEditingController(text: tournament?.prizeDistribution[1]?.toString() ?? '100');
+    final secondPrizeCtrl = TextEditingController(text: tournament?.prizeDistribution[2]?.toString() ?? '');
+    final thirdPrizeCtrl = TextEditingController(text: tournament?.prizeDistribution[3]?.toString() ?? '');
 
     showModalBottomSheet(
       context: context,
@@ -297,6 +302,49 @@ class AdminTournaments extends StatelessWidget {
                   decoration: const InputDecoration(labelText: 'Max Participants (optional)', prefixIcon: Icon(Icons.people_outline, size: 20)),
                   keyboardType: TextInputType.number,
                 ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: minTier,
+                  decoration: const InputDecoration(
+                    labelText: 'Required Tier',
+                    prefixIcon: Icon(Icons.stairs, size: 20),
+                  ),
+                  items: UserTier.values.map((t) => DropdownMenuItem(
+                    value: t.name,
+                    child: Text('${t.iconPath} ${t.label}'),
+                  )).toList(),
+                  onChanged: (v) => setDialogState(() => minTier = v!),
+                ),
+                const SizedBox(height: 12),
+                const Text('Prize Distribution (%)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: firstPrizeCtrl,
+                        decoration: const InputDecoration(labelText: '1st', prefixIcon: Icon(Icons.emoji_events, size: 20)),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: secondPrizeCtrl,
+                        decoration: const InputDecoration(labelText: '2nd', prefixIcon: Icon(Icons.looks_two, size: 20)),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: thirdPrizeCtrl,
+                        decoration: const InputDecoration(labelText: '3rd', prefixIcon: Icon(Icons.looks_3, size: 20)),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -320,6 +368,14 @@ class AdminTournaments extends StatelessWidget {
 
                       final minP = int.tryParse(minCtrl.text.trim());
                       final maxP = int.tryParse(maxCtrl.text.trim());
+                      final prizeMap = <int, int>{};
+                      final f = int.tryParse(firstPrizeCtrl.text.trim());
+                      if (f != null && f > 0) prizeMap[1] = f;
+                      final s = int.tryParse(secondPrizeCtrl.text.trim());
+                      if (s != null && s > 0) prizeMap[2] = s;
+                      final t = int.tryParse(thirdPrizeCtrl.text.trim());
+                      if (t != null && t > 0) prizeMap[3] = t;
+                      if (prizeMap.isEmpty) prizeMap[1] = 100;
                       final data = {
                         'title': titleCtrl.text.trim(),
                         'description': descCtrl.text.trim(),
@@ -334,6 +390,8 @@ class AdminTournaments extends StatelessWidget {
                         'platform': platform,
                         'minParticipants': minP,
                         'maxParticipants': maxP,
+                        'minTier': minTier,
+                        'prizeDistribution': prizeMap,
                         'createdBy': isSubAdmin ? user.uid : 'admin',
                         'createdAt': FieldValue.serverTimestamp(),
                       };

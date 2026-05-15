@@ -1,4 +1,5 @@
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const { onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { defineString } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const axios = require('axios');
@@ -350,7 +351,7 @@ exports.payTournamentFee = onCall(async (request) => {
 });
 
 // ===================================================================
-// 6. Award Prize
+// 6. Award Prize (multi-position)
 // ===================================================================
 exports.awardPrize = onCall(async (request) => {
   assertAuth(request);
@@ -361,54 +362,62 @@ exports.awardPrize = onCall(async (request) => {
     throw new HttpsError('permission-denied', 'Only admins can award prizes');
   }
 
-  const { tournamentId, winnerId } = request.data;
-  if (!tournamentId || !winnerId) throw new HttpsError('invalid-argument', 'Missing fields');
+  const { tournamentId, prizes } = request.data;
+  if (!tournamentId || !prizes || typeof prizes !== 'object') {
+    throw new HttpsError('invalid-argument', 'Missing or invalid fields: tournamentId and prizes map required');
+  }
 
-  const participants = await db.collection('participations')
-    .where('tournamentId', '==', tournamentId)
-    .where('accepted', '==', true)
-    .get();
+  const winnerIds = Object.keys(prizes);
+  if (winnerIds.length === 0) throw new HttpsError('invalid-argument', 'At least one winner required');
 
-  const paidCount = participants.docs.where((d) => d.data().paid === true).length;
+  const totalPrizes = Object.values(prizes).reduce((sum, v) => sum + (v || 0), 0);
+  if (totalPrizes <= 0) throw new HttpsError('invalid-argument', 'Total prize amount must be positive');
 
   const tournamentDoc = await db.collection('tournaments').doc(tournamentId).get();
   if (!tournamentDoc.exists) throw new HttpsError('not-found', 'Tournament not found');
-  const baseFee = tournamentDoc.data().entryFee;
-  if (!baseFee || paidCount === 0) throw new HttpsError('failed-precondition', 'Cannot calculate prize');
-
-  const prizeAmount = baseFee * paidCount;
 
   await db.runTransaction(async (tx) => {
     const sRef = db.collection('admin').doc('super_wallet');
-    const wRef = db.collection('wallets').doc(winnerId);
     const sDoc = await tx.get(sRef);
-    const wDoc = await tx.get(wRef);
-
     if (!sDoc.exists) throw new HttpsError('failed-precondition', 'Super wallet not found');
+
     const prizePool = sDoc.data().prizePool || 0;
-    if (prizePool < prizeAmount) throw new HttpsError('failed-precondition', 'Insufficient prize pool');
+    if (prizePool < totalPrizes) {
+      throw new HttpsError('failed-precondition', `Insufficient prize pool. Need ${totalPrizes}, have ${prizePool}`);
+    }
 
-    tx.update(sRef, { prizePool: admin.firestore.FieldValue.increment(-prizeAmount) });
+    tx.update(sRef, { prizePool: admin.firestore.FieldValue.increment(-totalPrizes) });
 
-    if (wDoc.exists) {
-      tx.update(wRef, {
-        balance: admin.firestore.FieldValue.increment(prizeAmount),
-        totalPrizeReceived: admin.firestore.FieldValue.increment(prizeAmount),
-      });
-    } else {
-      tx.set(wRef, {
-        balance: prizeAmount,
-        totalPrizeReceived: prizeAmount,
-      });
+    for (const [userId, amount] of Object.entries(prizes)) {
+      if (!amount || amount <= 0) continue;
+      const wRef = db.collection('wallets').doc(userId);
+      const wDoc = await tx.get(wRef);
+      if (wDoc.exists) {
+        tx.update(wRef, {
+          balance: admin.firestore.FieldValue.increment(amount),
+          totalPrizeReceived: admin.firestore.FieldValue.increment(amount),
+        });
+      } else {
+        tx.set(wRef, {
+          balance: amount,
+          totalPrizeReceived: amount,
+        });
+      }
     }
   });
 
-  await db.collection('transactions').add({
-    userId: winnerId, type: 'prizeWon', amount: prizeAmount, reference: tournamentId,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  const batch = db.batch();
+  for (const [userId, amount] of Object.entries(prizes)) {
+    if (!amount || amount <= 0) continue;
+    const txRef = db.collection('transactions').doc();
+    batch.set(txRef, {
+      userId, type: 'prizeWon', amount, reference: tournamentId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await batch.commit();
 
-  return { success: true, amount: prizeAmount };
+  return { success: true, totalAmount: totalPrizes, winners: winnerIds.length };
 });
 
 // ===================================================================
@@ -506,4 +515,79 @@ exports.deleteAccount = onCall({ enforceAppCheck: false }, async (request) => {
   await admin.auth().deleteUser(userId);
 
   return { success: true };
+});
+
+// ===================================================================
+// 10. Waiting List Auto-Promote
+// ===================================================================
+exports.autoPromoteFromWaitingList = onDocumentDeleted('participations/{docId}', async (event) => {
+  const deletedData = event.data?.data();
+  if (!deletedData) return;
+
+  const tournamentId = deletedData.tournamentId;
+  if (!tournamentId) return;
+
+  // Check if the tournament still exists and has room
+  const tournDoc = await db.collection('tournaments').doc(tournamentId).get();
+  if (!tournDoc.exists) return;
+  const maxP = tournDoc.data().maxParticipants;
+  if (!maxP) return; // no max, no need to promote
+
+  const currentCount = await db.collection('participations')
+    .where('tournamentId', '==', tournamentId)
+    .where('accepted', '==', true)
+    .count().get();
+
+  const acceptedCount = currentCount.data().count || 0;
+  if (acceptedCount >= maxP) return; // no room
+
+  // Promote next from waiting list
+  const waitingSnap = await db.collection('waiting_list')
+    .where('tournamentId', '==', tournamentId)
+    .orderBy('createdAt')
+    .limit(1)
+    .get();
+
+  if (waitingSnap.docs.length === 0) return;
+
+  const waitingDoc = waitingSnap.docs[0];
+  const promotedUserId = waitingDoc.data().userId;
+
+  // Create participation
+  await db.collection('participations').add({
+    userId: promotedUserId,
+    tournamentId,
+    vote: 'yes',
+    accepted: true,
+    paid: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Remove from waiting list
+  await waitingDoc.ref.delete();
+
+  // Send notification
+  const userDoc = await db.collection('users').doc(promotedUserId).get();
+  const fcmToken = userDoc.data()?.fcmToken;
+  if (fcmToken) {
+    try {
+      await admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: 'Spot Available!',
+          body: `A spot opened up in a tournament you were waiting for. You've been auto-registered!`,
+        },
+      });
+    } catch (_) { /* token may be stale */ }
+  }
+
+  const notifRef = db.collection('notifications').doc(promotedUserId).collection('items');
+  await notifRef.add({
+    title: 'Spot Available!',
+    body: `A spot opened up in a tournament. You've been auto-registered from the waiting list.`,
+    type: 'waiting_promotion',
+    tournamentId,
+    read: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
 });

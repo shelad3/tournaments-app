@@ -15,6 +15,10 @@ import '../../providers/wallet_provider.dart';
 import '../../providers/bracket_provider.dart';
 import '../../services/wallet_service.dart';
 import '../../services/check_in_service.dart';
+import '../../services/tier_service.dart';
+import '../../services/waiting_list_service.dart';
+import '../../services/user_stats_service.dart';
+import '../../models/user_tier.dart';
 import '../../utils/avatar_helper.dart';
 import '../profile/user_profile_screen.dart';
 import 'tournament_chat_screen.dart';
@@ -38,6 +42,15 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
   ParticipationModel? _existingParticipation;
   Timer? _timer;
   late TabController _tabController;
+  final _waitingListService = WaitingListService();
+  final _tierService = TierService();
+  final _statsService = UserStatsService();
+  bool _inWaitingList = false;
+  int _waitingPosition = 0;
+  UserStats? _userStats;
+
+  UserTier _tierFromString(String tier) =>
+      UserTier.values.firstWhere((t) => t.name == tier, orElse: () => UserTier.bronze);
 
   @override
   void initState() {
@@ -65,6 +78,56 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
     }
     final counts = await tournamentProv.loadParticipantCounts(widget.tournament.id);
     if (mounted) setState(() => _counts = counts);
+
+    if (auth.isLoggedIn) {
+      if (widget.tournament.hasTierRestriction) {
+        final inList = await _waitingListService.isInWaitingList(auth.user!.uid, widget.tournament.id);
+        if (mounted) setState(() => _inWaitingList = inList);
+        if (inList) {
+          final pos = await _waitingListService.position(auth.user!.uid, widget.tournament.id);
+          if (mounted) setState(() => _waitingPosition = pos);
+        }
+      }
+      final stats = await _statsService.getUserStats(auth.user!.uid);
+      if (mounted) setState(() => _userStats = stats);
+    }
+  }
+
+  bool _meetsTierRequirement(AuthProvider auth) {
+    final user = auth.user;
+    if (user == null) return false;
+    final requiredTier = _tierFromString(widget.tournament.minTier);
+    if (requiredTier == UserTier.bronze) return true;
+    final stats = _userStats;
+    if (stats == null) return false;
+    final accountAge = DateTime.now().difference(user.createdAt).inDays;
+    final userTier = _tierService.calculateTier(
+      stats: stats,
+      accountAgeDays: accountAge,
+      emailVerified: user.emailVerified,
+    );
+    return _tierService.canAccess(userTier, requiredTier);
+  }
+
+  Future<void> _toggleWaitingList(AuthProvider auth) async {
+    final userId = auth.user!.uid;
+    final tournamentId = widget.tournament.id;
+    if (_inWaitingList) {
+      await _waitingListService.leave(userId, tournamentId);
+      setState(() {
+        _inWaitingList = false;
+        _waitingPosition = 0;
+      });
+    } else {
+      final joined = await _waitingListService.join(userId, tournamentId);
+      if (joined) {
+        final pos = await _waitingListService.position(userId, tournamentId);
+        setState(() {
+          _inWaitingList = true;
+          _waitingPosition = pos;
+        });
+      }
+    }
   }
 
   Future<void> _accept() async {
@@ -78,6 +141,19 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('You have already registered for this tournament!'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    if (widget.tournament.isMoney && !auth.user!.emailVerified) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please verify your email before registering for paid tournaments.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
       );
       return;
     }
@@ -295,7 +371,7 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildInfoTab(tournament, dateFormat, timeFormat, canSignUp, isRegistered, startTime, timeLeft, isPast),
+          _buildInfoTab(context.read<AuthProvider>(), tournament, dateFormat, timeFormat, canSignUp, isRegistered, startTime, timeLeft, isPast),
           _buildPlayersTab(isActive, canCheckIn),
         ],
       ),
@@ -303,6 +379,7 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
   }
 
   Widget _buildInfoTab(
+    AuthProvider auth,
     TournamentModel tournament,
     DateFormat dateFormat,
     DateFormat timeFormat,
@@ -416,6 +493,25 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
             Text('* Service charge of ${tournament.totalFee - tournament.entryFee} KES included',
                 style: const TextStyle(color: Colors.grey, fontSize: 12)),
           ],
+          if (tournament.hasTierRestriction) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.purple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock, size: 16, color: Colors.purple.shade700),
+                  const SizedBox(width: 4),
+                  Text('Requires ${_tierFromString(tournament.minTier).iconPath} ${_tierFromString(tournament.minTier).label} tier or higher',
+                      style: TextStyle(color: Colors.purple.shade700, fontWeight: FontWeight.w600, fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
 
           if (!isPast && timeLeft.inDays <= 30)
@@ -524,51 +620,99 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
           const SizedBox(height: 24),
 
           if (canSignUp && !isRegistered) ...[
-            Text('Vote', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _VoteButton(
-                  label: 'Yes',
-                  icon: Icons.thumb_up,
-                  selected: _vote == 'yes',
-                  color: Colors.green,
-                  onTap: () => setState(() => _vote = 'yes'),
+            if (widget.tournament.hasTierRestriction && auth.isLoggedIn && !_meetsTierRequirement(auth)) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.purple.shade200),
                 ),
-                const SizedBox(width: 16),
-                _VoteButton(
-                  label: 'No',
-                  icon: Icons.thumb_down,
-                  selected: _vote == 'no',
-                  color: Colors.red,
-                  onTap: () => setState(() => _vote = 'no'),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.lock, color: Colors.purple.shade700, size: 24),
+                        const SizedBox(width: 8),
+                        Text('Requires ${_tierFromString(widget.tournament.minTier).label} tier',
+                            style: TextStyle(color: Colors.purple.shade700, fontWeight: FontWeight.w600, fontSize: 15)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    StreamBuilder<int>(
+                      stream: _waitingListService.waitingCountStream(widget.tournament.id),
+                      builder: (_, snap) {
+                        final count = snap.data ?? 0;
+                        return Text('$count people in waiting list', style: const TextStyle(color: Colors.grey, fontSize: 13));
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _toggleWaitingList(auth),
+                        icon: Icon(_inWaitingList ? Icons.exit_to_app : Icons.add),
+                        label: Text(_inWaitingList
+                            ? 'Leave Waiting List (Position: $_waitingPosition)'
+                            : 'Join Waiting List'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _inWaitingList ? Colors.red : Colors.purple,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              Text('Vote', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _VoteButton(
+                    label: 'Yes',
+                    icon: Icons.thumb_up,
+                    selected: _vote == 'yes',
+                    color: Colors.green,
+                    onTap: () => setState(() => _vote = 'yes'),
+                  ),
+                  const SizedBox(width: 16),
+                  _VoteButton(
+                    label: 'No',
+                    icon: Icons.thumb_down,
+                    selected: _vote == 'no',
+                    color: Colors.red,
+                    onTap: () => setState(() => _vote = 'no'),
+                  ),
+                ],
+              ),
+              if (_vote == 'no') ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _reasonController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason for declining',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
                 ),
               ],
-            ),
-            if (_vote == 'no') ...[
-              const SizedBox(height: 16),
-              TextField(
-                controller: _reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason for declining',
-                  border: OutlineInputBorder(),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _accept,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Accept Tournament', style: TextStyle(fontSize: 16)),
                 ),
-                maxLines: 3,
               ),
             ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _accept,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: _isSubmitting
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Accept Tournament', style: TextStyle(fontSize: 16)),
-              ),
-            ),
           ] else if (isRegistered) ...[
             Container(
               width: double.infinity,

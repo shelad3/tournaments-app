@@ -39,20 +39,25 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isSuperAdmin();
+
+      // ===== MATCHES (brackets subcollection) =====
+      // Update allowed for any auth user so participants can report results,
+      // propose times, and auto-advance winners to next round.
+      // Create/delete remain admin-only.
+      match /matches/{matchId} {
+        allow read: if isAuth();
+        allow create: if isAdmin();
+        allow update: if isAuth();
+        allow delete: if isAdmin();
+      }
     }
 
-    // ===== PARTICIPATIONS (top-level collection) =====
+    // ===== PARTICIPATIONS =====
     match /participations/{partId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // ===== MATCHES (for brackets) =====
-    match /matches/{matchId} {
-      allow read: if isAuth();
-      allow create, update, delete: if isAdmin();
+      allow update: if isAdmin() || isOwner(resource.data.userId);
+      allow delete: if isAdmin() || (isOwner(resource.data.userId) && resource.data.accepted != true);
     }
 
     // ===== WALLETS =====
@@ -79,14 +84,6 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ===== FORUM MESSAGES =====
-    match /forum_messages/{messageId} {
-      allow read: if isAuth();
-      allow create: if isAuth();
-      allow update: if isOwner(resource.data.userId) || isAdmin();
-      allow delete: if isOwner(resource.data.userId) || isAdmin();
-    }
-
     // ===== PLACES (gaming venues) =====
     match /places/{placeId} {
       allow read: if isAuth();
@@ -100,11 +97,43 @@ service cloud.firestore {
       allow delete: if isAuth();
     }
 
-    // ===== CHAT MESSAGES (tournament chats) =====
-    match /tournaments/{tournamentId}/chat/{messageId} {
+    // ===== TOURNAMENT CHAT =====
+    match /tournament_chats/{tournamentId}/messages/{messageId} {
       allow read: if isAuth();
       allow create: if isAuth();
       allow update, delete: if isAdmin();
+    }
+
+    // ===== NOTIFICATIONS =====
+    match /notifications/{userId}/items/{notificationId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ===== FORUM CHANNELS =====
+    match /forum_channels/{channelId} {
+      allow read: if isAuth();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      // ===== FORUM MESSAGES (subcollection) =====
+      match /messages/{messageId} {
+        allow read: if isAuth();
+        allow create: if isAuth();
+        allow update: if isOwner(resource.data.userId) || isAdmin();
+        allow delete: if isOwner(resource.data.userId) || isAdmin();
+      }
+    }
+
+    // ===== WAITING LIST =====
+    match /waiting_list/{entryId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (isAuth() && resource.data.userId == request.auth.uid);
     }
 
     // ===== LEAGUE UPDATES =====
