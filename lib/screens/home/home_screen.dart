@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/tournament_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../services/tournament_service.dart';
+import '../notifications/notification_screen.dart';
 import '../../models/tournament_model.dart';
 import '../../config/game_categories.dart';
 import '../../widgets/app_card.dart';
@@ -45,6 +47,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       appBar: AppBar(
         title: const Text('Tournaments'),
         actions: [
+          Consumer<NotificationProvider>(
+            builder: (_, notifProv, __) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined),
+                  tooltip: 'Notifications',
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const NotificationScreen(),
+                  )),
+                ),
+                if (notifProv.unreadCount > 0)
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${notifProv.unreadCount > 9 ? '9+' : notifProv.unreadCount}',
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.emoji_events),
             tooltip: 'Leaderboard',

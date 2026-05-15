@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.2.0",
-  "latestBuildNumber": 4,
-  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.2.0/app-release.apk",
-  "changelog": "- Fixed app icon (Flutter default was showing)\n- Fixed app label (was fc_tournaments, now Tournaments)\n- Fixed Registered tab loading slowly or not showing tournaments\n- Fixed 'already registered' bug when registration fails mid-way\n- Fixed leaderboard showing empty (now shows all participants)\n- Forum channels: admins can create channels, global default channel\n- Match result reporting: I Won / I Lost / Draw with mutual confirmation\n- Players tab with participant list and match pairings\n- Admin dispute resolution for mismatched results"
+  "latestVersion": "1.3.0",
+  "latestBuildNumber": 5,
+  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.3.0/app-release.apk",
+  "changelog": "Tournament History: View past tournaments with win/loss results\nCheck-in System: Check in before tournament starts\nAdmin check-in: Admins can check in / undo check-in for any player\nPlayer stats page from profile\nNotification bell with unread badge\nMatch scheduling with proposals & countdown\nForum channels with admin-created channels\nMatch result reporting with mutual confirmation\nFirestore stream timeouts with retry UI"
 }

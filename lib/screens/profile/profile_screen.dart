@@ -18,6 +18,8 @@ import '../../widgets/team_selector.dart';
 import '../../widgets/update_dialog.dart';
 import '../login_screen.dart';
 import 'privacy_screen.dart';
+import 'tournament_history_screen.dart';
+import 'player_stats_screen.dart';
 
 class AvatarData {
   final IconData icon;
@@ -468,13 +470,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (_loadingStats)
                   const Center(child: CircularProgressIndicator())
                 else if (_stats != null)
-                  Row(
+                  Column(
                     children: [
-                      StatCard(icon: Icons.sports_soccer, label: 'Played', value: '${_stats!.tournamentsPlayed}', color: Colors.blue),
-                      const SizedBox(width: 12),
-                      StatCard(icon: Icons.emoji_events, label: 'Won', value: '${_stats!.tournamentsWon}', color: Colors.amber),
-                      const SizedBox(width: 12),
-                      StatCard(icon: Icons.monetization_on, label: 'Prize', value: '${_stats!.prizeMoney} KES', color: Colors.green),
+                      Row(
+                        children: [
+                          StatCard(icon: Icons.sports_soccer, label: 'Played', value: '${_stats!.tournamentsPlayed}', color: Colors.blue),
+                          const SizedBox(width: 12),
+                          StatCard(icon: Icons.emoji_events, label: 'Won', value: '${_stats!.tournamentsWon}', color: Colors.amber),
+                          const SizedBox(width: 12),
+                          StatCard(icon: Icons.monetization_on, label: 'Prize', value: '${_stats!.prizeMoney} KES', color: Colors.green),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => PlayerStatsScreen(
+                              userId: user.uid,
+                              userName: user.username ?? user.fullName,
+                            ),
+                          )),
+                          icon: const Icon(Icons.bar_chart, size: 18),
+                          label: const Text('View Detailed Stats'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => TournamentHistoryScreen(userId: user.uid),
+                          )),
+                          icon: const Icon(Icons.history, size: 18),
+                          label: const Text('Tournament History'),
+                        ),
+                      ),
                     ],
                   ),
                 if (user.favoriteTeam != null) ...[

@@ -7,6 +7,7 @@ class ParticipationModel {
   final String? teamName;
   final bool accepted;
   final bool paid;
+  final bool checkedIn;
   final DateTime createdAt;
 
   ParticipationModel({
@@ -18,6 +19,7 @@ class ParticipationModel {
     this.teamName,
     this.accepted = false,
     this.paid = false,
+    this.checkedIn = false,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -29,6 +31,7 @@ class ParticipationModel {
     'teamName': teamName,
     'accepted': accepted,
     'paid': paid,
+    'checkedIn': checkedIn,
     'createdAt': createdAt,
   };
 
@@ -41,6 +44,7 @@ class ParticipationModel {
     teamName: map['teamName'],
     accepted: map['accepted'] ?? false,
     paid: map['paid'] ?? false,
+    checkedIn: map['checkedIn'] ?? false,
     createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
   );
 
@@ -53,6 +57,7 @@ class ParticipationModel {
     String? teamName,
     bool? accepted,
     bool? paid,
+    bool? checkedIn,
     DateTime? createdAt,
   }) => ParticipationModel(
     id: id ?? this.id,
@@ -63,6 +68,7 @@ class ParticipationModel {
     teamName: teamName ?? this.teamName,
     accepted: accepted ?? this.accepted,
     paid: paid ?? this.paid,
+    checkedIn: checkedIn ?? this.checkedIn,
     createdAt: createdAt ?? this.createdAt,
   );
 }

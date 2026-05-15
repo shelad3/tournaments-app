@@ -12,6 +12,7 @@ import 'providers/bracket_provider.dart';
 import 'providers/leaderboard_provider.dart';
 import 'providers/discover_provider.dart';
 import 'providers/app_lock_provider.dart';
+import 'providers/notification_provider.dart';
 import 'screens/splash_screen.dart';
 
 class FCTournamentsApp extends StatelessWidget {
@@ -32,6 +33,7 @@ class FCTournamentsApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LeaderboardProvider()),
         ChangeNotifierProvider(create: (_) => DiscoverProvider()),
         ChangeNotifierProvider(create: (_) => AppLockProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: Consumer2<AuthProvider, ThemeProvider>(
         builder: (_, auth, theme, __) => MaterialApp(

@@ -14,6 +14,10 @@ class MatchModel {
   final MatchReportStatus reportStatus;
   final String? result1;
   final String? result2;
+  final DateTime? proposedTime;
+  final String? proposedBy;
+  final DateTime? scheduledTime;
+  final String scheduleStatus;
 
   MatchModel({
     required this.id,
@@ -29,6 +33,10 @@ class MatchModel {
     this.reportStatus = MatchReportStatus.none,
     this.result1,
     this.result2,
+    this.proposedTime,
+    this.proposedBy,
+    this.scheduledTime,
+    this.scheduleStatus = 'none',
   });
 
   String? get winnerTeam =>
@@ -38,6 +46,18 @@ class MatchModel {
       participant1Id != null && participant2Id != null;
 
   bool get isBye => participant2Id == null;
+
+  bool get hasScheduledTime => scheduledTime != null;
+
+  Duration? get scheduleCountdown {
+    if (scheduledTime == null) return null;
+    return scheduledTime!.difference(DateTime.now());
+  }
+
+  bool get isSchedulePast => scheduleCountdown?.isNegative ?? false;
+
+  String? get opponentId =>
+      participant1Id == null ? null : participant2Id;
 
   Map<String, dynamic> toMap() => {
     'tournamentId': tournamentId,
@@ -52,6 +72,10 @@ class MatchModel {
     'reportStatus': reportStatusToJson(reportStatus),
     'result1': result1,
     'result2': result2,
+    'proposedTime': proposedTime,
+    'proposedBy': proposedBy,
+    'scheduledTime': scheduledTime,
+    'scheduleStatus': scheduleStatus,
   };
 
   factory MatchModel.fromMap(Map<String, dynamic> map, String id) =>
@@ -69,6 +93,10 @@ class MatchModel {
         reportStatus: reportStatusFromJson(map['reportStatus']),
         result1: map['result1'],
         result2: map['result2'],
+        proposedTime: (map['proposedTime'] as dynamic)?.toDate(),
+        proposedBy: map['proposedBy'],
+        scheduledTime: (map['scheduledTime'] as dynamic)?.toDate(),
+        scheduleStatus: map['scheduleStatus'] ?? 'none',
       );
 
   MatchModel copyWith({
@@ -85,6 +113,10 @@ class MatchModel {
     MatchReportStatus? reportStatus,
     String? result1,
     String? result2,
+    DateTime? proposedTime,
+    String? proposedBy,
+    DateTime? scheduledTime,
+    String? scheduleStatus,
   }) =>
       MatchModel(
         id: id ?? this.id,
@@ -100,5 +132,9 @@ class MatchModel {
         reportStatus: reportStatus ?? this.reportStatus,
         result1: result1 ?? this.result1,
         result2: result2 ?? this.result2,
+        proposedTime: proposedTime ?? this.proposedTime,
+        proposedBy: proposedBy ?? this.proposedBy,
+        scheduledTime: scheduledTime ?? this.scheduledTime,
+        scheduleStatus: scheduleStatus ?? this.scheduleStatus,
       );
 }

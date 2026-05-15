@@ -14,6 +14,7 @@ import '../../providers/tournament_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/bracket_provider.dart';
 import '../../services/wallet_service.dart';
+import '../../services/check_in_service.dart';
 import '../../utils/avatar_helper.dart';
 import '../profile/user_profile_screen.dart';
 import 'tournament_chat_screen.dart';
@@ -184,6 +185,63 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
     );
   }
 
+  Future<void> _proposeTime(MatchModel match) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(hours: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 14)),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+    );
+    if (time == null || !mounted) return;
+
+    final scheduled = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final auth = context.read<AuthProvider>();
+    final bracketProv = context.read<BracketProvider>();
+
+    await bracketProv.proposeTime(
+      tournamentId: widget.tournament.id,
+      matchId: match.id,
+      userId: auth.user!.uid,
+      time: scheduled,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Time proposed! Waiting for opponent to confirm.'), backgroundColor: Colors.blue),
+    );
+  }
+
+  Future<void> _confirmTime(MatchModel match) async {
+    if (match.proposedTime == null) return;
+    final bracketProv = context.read<BracketProvider>();
+
+    await bracketProv.confirmTime(
+      tournamentId: widget.tournament.id,
+      matchId: match.id,
+      time: match.proposedTime!,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Match time confirmed!'), backgroundColor: Colors.green),
+    );
+  }
+
+  Future<void> _cancelProposal(MatchModel match) async {
+    final bracketProv = context.read<BracketProvider>();
+    await bracketProv.cancelProposal(
+      tournamentId: widget.tournament.id,
+      matchId: match.id,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tournament = widget.tournament;
@@ -195,6 +253,9 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
     final timeLeft = startTime.difference(DateTime.now());
     final isPast = timeLeft.isNegative;
     final isActive = !isPast && !canSignUp;
+
+    final isEnded = DateTime.now().isAfter(tournament.effectiveEndTime);
+    final canCheckIn = !canSignUp && !isEnded;
 
     return Scaffold(
       appBar: AppBar(
@@ -235,7 +296,7 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
         controller: _tabController,
         children: [
           _buildInfoTab(tournament, dateFormat, timeFormat, canSignUp, isRegistered, startTime, timeLeft, isPast),
-          _buildPlayersTab(isActive),
+          _buildPlayersTab(isActive, canCheckIn),
         ],
       ),
     );
@@ -550,7 +611,8 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
     );
   }
 
-  Widget _buildPlayersTab(bool isActive) {
+  Widget _buildPlayersTab(bool isActive, bool canCheckIn) {
+    final auth = context.watch<AuthProvider>();
     return Consumer<TournamentProvider>(
       builder: (_, prov, __) {
         return StreamBuilder<List<ParticipationModel>>(
@@ -570,6 +632,11 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
               );
             }
 
+            final myParticipation = auth.isLoggedIn
+                ? participants.where((p) => p.userId == auth.user!.uid).firstOrNull
+                : null;
+            final isAdmin = auth.isAdmin;
+
             return Consumer<BracketProvider>(
               builder: (_, bracketProv, __) {
                 final matches = bracketProv.matches
@@ -581,7 +648,7 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
                   itemCount: participants.length + (isActive && matches.isNotEmpty ? matches.length : 0),
                   itemBuilder: (_, i) {
                     if (i < participants.length) {
-                      return _buildPlayerCard(participants[i]);
+                      return _buildPlayerCard(participants[i], myParticipation, canCheckIn, isAdmin);
                     }
                     final matchIdx = i - participants.length;
                     if (matchIdx < matches.length) {
@@ -598,7 +665,24 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
     );
   }
 
-  Widget _buildPlayerCard(ParticipationModel participant) {
+  Widget _buildPlayerCard(ParticipationModel participant, ParticipationModel? myParticipation, bool canCheckIn, bool isAdmin) {
+    final isMe = myParticipation?.userId == participant.userId;
+    final showCheckIn = (isMe || isAdmin) && canCheckIn;
+
+    void doCheckIn() async {
+      final service = CheckInService();
+      final ok = participant.checkedIn
+          ? await service.undoCheckIn(participant.userId, widget.tournament.id)
+          : await service.checkIn(participant.userId, widget.tournament.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok
+            ? participant.checkedIn ? 'Check-in undone' : 'Checked in successfully!'
+            : 'Failed'),
+        backgroundColor: ok ? Colors.green : Colors.red,
+      ));
+    }
+
     return FutureBuilder<DocumentSnapshot>(
       future: context.read<TournamentProvider>().getUserProfile(participant.userId),
       builder: (_, snap) {
@@ -609,12 +693,35 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             leading: AvatarHelper.buildCircleAvatar(photoUrl, 20),
-            title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(participant.paid ? 'Paid' : 'Free entry',
-                style: TextStyle(color: participant.paid ? Colors.green : Colors.grey, fontSize: 12)),
-            trailing: participant.paid
-                ? const Icon(Icons.check_circle, size: 18, color: Colors.green)
-                : null,
+            title: Row(
+              children: [
+                Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600))),
+                if (participant.checkedIn)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text('Checked in', style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w600)),
+                  ),
+              ],
+            ),
+            subtitle: Text(
+              participant.paid ? 'Paid' : 'Free entry',
+              style: TextStyle(color: participant.paid ? Colors.green : Colors.grey, fontSize: 12),
+            ),
+            trailing: showCheckIn
+                ? TextButton(
+                    onPressed: doCheckIn,
+                    child: Text(
+                      participant.checkedIn ? 'Undo' : 'Check In',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: participant.checkedIn ? Colors.red : Colors.green),
+                    ),
+                  )
+                : participant.checkedIn
+                    ? const Icon(Icons.check_circle, size: 18, color: Colors.green)
+                    : null,
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => UserProfileScreen(userId: participant.userId),
             )),
@@ -628,6 +735,8 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
     final auth = context.read<AuthProvider>();
     final userId = auth.user!.uid;
     final isMyMatch = userId == match.participant1Id || userId == match.participant2Id;
+    final iAmProposer = match.proposedBy == userId;
+    final opponentProposed = match.proposedBy != null && !iAmProposer;
 
     if (!match.hasBothParticipants || match.isBye) return const SizedBox.shrink();
 
@@ -650,6 +759,12 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
             Text(match.participant1Id ?? 'TBD', style: const TextStyle(fontSize: 13)),
             Text('vs', style: TextStyle(fontSize: 12, color: Colors.grey)),
             Text(match.participant2Id ?? 'TBD', style: const TextStyle(fontSize: 13)),
+
+            if (match.hasScheduledTime) ...[
+              const SizedBox(height: 8),
+              _ScheduleCountdown(scheduledTime: match.scheduledTime!),
+            ],
+
             if (match.completed) ...[
               const SizedBox(height: 8),
               Row(
@@ -667,8 +782,81 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
                 ],
               ),
             ],
+
+            if (match.scheduleStatus == 'proposed' && opponentProposed && isMyMatch && !match.completed) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Opponent proposed: ${_formatScheduleTime(match.proposedTime!)}',
+                        style: TextStyle(fontSize: 12, color: Colors.blue.shade800, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => _cancelProposal(match),
+                          child: const Text('Decline', style: TextStyle(color: Colors.red)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () => _confirmTime(match),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                          child: const Text('Accept', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             if (isActive && isMyMatch && !match.completed) ...[
               const SizedBox(height: 12),
+
+              if (match.scheduleStatus == 'none')
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _proposeTime(match),
+                    icon: const Icon(Icons.schedule, size: 16),
+                    label: const Text('Schedule Match'),
+                  ),
+                ),
+
+              if (iAmProposer && match.scheduleStatus == 'proposed')
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.hourglass_empty, size: 16, color: Colors.amber),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text('Waiting for opponent to confirm ${_formatScheduleTime(match.proposedTime!)}',
+                            style: TextStyle(fontSize: 12, color: Colors.amber.shade800)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: () => _cancelProposal(match),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -697,6 +885,11 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
         ),
       ),
     );
+  }
+
+  String _formatScheduleTime(DateTime time) {
+    final format = DateFormat('MMM dd, HH:mm');
+    return format.format(time);
   }
 
   String _formatCountdown(Duration d) {
@@ -763,6 +956,82 @@ class _VoteButton extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ScheduleCountdown extends StatefulWidget {
+  final DateTime scheduledTime;
+  const _ScheduleCountdown({required this.scheduledTime});
+
+  @override
+  State<_ScheduleCountdown> createState() => _ScheduleCountdownState();
+}
+
+class _ScheduleCountdownState extends State<_ScheduleCountdown> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final diff = widget.scheduledTime.difference(DateTime.now());
+    final isPast = diff.isNegative;
+
+    if (isPast) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.alarm, size: 14, color: Colors.red.shade700),
+            const SizedBox(width: 6),
+            Text('Match time passed! Play your match and report result.',
+                style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+    }
+
+    String text;
+    if (diff.inDays > 0) {
+      text = '${diff.inDays}d ${diff.inHours.remainder(24)}h ${diff.inMinutes.remainder(60)}m until match';
+    } else if (diff.inHours > 0) {
+      text = '${diff.inHours}h ${diff.inMinutes.remainder(60)}m until match';
+    } else if (diff.inMinutes > 0) {
+      text = '${diff.inMinutes}m ${diff.inSeconds.remainder(60)}s until match';
+    } else {
+      text = 'Match starting now!';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timer, size: 14, color: Colors.green.shade700),
+          const SizedBox(width: 6),
+          Text(text, style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }

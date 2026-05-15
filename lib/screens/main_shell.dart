@@ -7,6 +7,7 @@ import '../providers/tournament_provider.dart';
 import '../providers/wallet_provider.dart';
 import '../providers/message_provider.dart';
 import '../providers/forum_provider.dart';
+import '../providers/notification_provider.dart';
 import '../services/fcm_service.dart';
 import '../services/fcm_service.dart' show firebaseMessagingBackgroundHandler;
 import '../services/update_service.dart';
@@ -75,6 +76,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       walletProv.loadTransactions(auth.user!.uid);
       tournamentProv.loadUserParticipations(auth.user!.uid);
       fcm.saveTokenToFirestore(auth.user!.uid);
+      context.read<NotificationProvider>().loadNotifications(auth.user!.uid);
     }
     _checkForUpdate();
   }

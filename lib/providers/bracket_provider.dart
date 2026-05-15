@@ -3,10 +3,12 @@ import '../models/match_model.dart';
 import '../models/participation_model.dart';
 import '../services/bracket_service.dart';
 import '../services/match_result_service.dart';
+import '../services/schedule_service.dart';
 
 class BracketProvider extends ChangeNotifier {
   final BracketService _service = BracketService();
   final MatchResultService _resultService = MatchResultService();
+  final ScheduleService _scheduleService = ScheduleService();
 
   List<MatchModel> _matches = [];
   bool _isLoading = false;
@@ -73,6 +75,42 @@ class BracketProvider extends ChangeNotifier {
   Future<void> adminResolve(
       String tournamentId, String matchId, String? winnerId) async {
     await _resultService.adminResolve(tournamentId, matchId, winnerId);
+  }
+
+  Future<void> proposeTime({
+    required String tournamentId,
+    required String matchId,
+    required String userId,
+    required DateTime time,
+  }) async {
+    await _scheduleService.proposeTime(
+      tournamentId: tournamentId,
+      matchId: matchId,
+      userId: userId,
+      time: time,
+    );
+  }
+
+  Future<void> confirmTime({
+    required String tournamentId,
+    required String matchId,
+    required DateTime time,
+  }) async {
+    await _scheduleService.confirmTime(
+      tournamentId: tournamentId,
+      matchId: matchId,
+      time: time,
+    );
+  }
+
+  Future<void> cancelProposal({
+    required String tournamentId,
+    required String matchId,
+  }) async {
+    await _scheduleService.cancelProposal(
+      tournamentId: tournamentId,
+      matchId: matchId,
+    );
   }
 
   bool hasBracket() => _matches.isNotEmpty;
