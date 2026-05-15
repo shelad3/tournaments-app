@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/tournament_model.dart';
 import '../models/participation_model.dart';
 import '../services/tournament_service.dart';
 
 class TournamentProvider extends ChangeNotifier {
   final TournamentService _service = TournamentService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   List<TournamentModel> _tournaments = [];
   List<ParticipationModel> _userParticipations = [];
@@ -103,6 +105,12 @@ class TournamentProvider extends ChangeNotifier {
     return snap;
   }
 
+  Stream<List<ParticipationModel>> getParticipantsStream(String tournamentId) =>
+      _service.getTournamentParticipants(tournamentId);
+
   Stream<int> acceptedParticipantCountStream(String tournamentId) =>
       _service.acceptedCountStream(tournamentId);
+
+  Future<DocumentSnapshot> getUserProfile(String userId) =>
+      _firestore.collection('users').doc(userId).get();
 }

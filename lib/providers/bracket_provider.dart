@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import '../models/match_model.dart';
 import '../models/participation_model.dart';
 import '../services/bracket_service.dart';
+import '../services/match_result_service.dart';
 
 class BracketProvider extends ChangeNotifier {
   final BracketService _service = BracketService();
+  final MatchResultService _resultService = MatchResultService();
 
   List<MatchModel> _matches = [];
   bool _isLoading = false;
@@ -52,6 +54,25 @@ class BracketProvider extends ChangeNotifier {
   Future<void> setWinner(
       String tournamentId, String matchId, String winnerId, String winnerTeam) async {
     await _service.setWinner(tournamentId, matchId, winnerId, winnerTeam);
+  }
+
+  Future<void> reportResult({
+    required String tournamentId,
+    required MatchModel match,
+    required String userId,
+    required String result,
+  }) async {
+    await _resultService.reportResult(
+      tournamentId: tournamentId,
+      match: match,
+      userId: userId,
+      result: result,
+    );
+  }
+
+  Future<void> adminResolve(
+      String tournamentId, String matchId, String? winnerId) async {
+    await _resultService.adminResolve(tournamentId, matchId, winnerId);
   }
 
   bool hasBracket() => _matches.isNotEmpty;

@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.0.0",
-  "latestBuildNumber": 1,
-  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.0.0/app-release.apk",
-  "changelog": "- Initial release\n- Tournament creation, registration, brackets\n- M-Pesa deposits & withdrawals\n- Real-time updates & announcements\n- User profiles, follow system, forum\n- Biometric app lock\n- Auto-update via GitHub"
+  "latestVersion": "1.1.0",
+  "latestBuildNumber": 2,
+  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.1.0/app-release.apk",
+  "changelog": "- Forum channels: admins can create channels, global default channel\n- Match result reporting: players report I Won / I Lost / Draw with mutual confirmation\n- Players tab: view all registered participants + match pairings\n- Admin dispute resolution for mismatched results"
 }

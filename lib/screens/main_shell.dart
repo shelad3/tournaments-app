@@ -67,7 +67,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final messageProv = context.read<MessageProvider>();
     messageProv.loadMessages();
     final forumProv = context.read<ForumProvider>();
-    forumProv.loadMessages();
+    forumProv.loadChannels();
     final walletProv = context.read<WalletProvider>();
     final auth = context.read<AuthProvider>();
     if (auth.isLoggedIn) {

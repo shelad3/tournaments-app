@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/forum_provider.dart';
 import '../../models/forum_message_model.dart';
+import '../../models/channel_model.dart';
 import '../../utils/avatar_helper.dart';
 import '../profile/user_profile_screen.dart';
 
@@ -19,6 +20,17 @@ class _ForumScreenState extends State<ForumScreen> {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   final _imagePicker = ImagePicker();
+  bool _showingChannels = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final forum = context.read<ForumProvider>();
+      forum.loadChannels();
+      forum.ensureGlobalChannel();
+    });
+  }
 
   @override
   void dispose() {
@@ -70,17 +82,122 @@ class _ForumScreenState extends State<ForumScreen> {
     _scrollToBottom();
   }
 
+  void _openChannel(ChannelModel channel) {
+    context.read<ForumProvider>().switchChannel(channel.id);
+    setState(() => _showingChannels = false);
+  }
+
+  void _showCreateChannelDialog() {
+    final nameController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create Channel'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            hintText: 'Channel name',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.isNotEmpty) {
+                context.read<ForumProvider>().createChannel(
+                  name,
+                  context.read<AuthProvider>().user!.uid,
+                );
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_showingChannels) return _buildChannelList();
+    return _buildChat();
+  }
+
+  Widget _buildChannelList() {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Forum'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<ForumProvider>().loadMessages(),
+            icon: const Icon(Icons.add),
+            tooltip: 'Create channel',
+            onPressed: _showCreateChannelDialog,
           ),
         ],
+      ),
+      body: Consumer<ForumProvider>(
+        builder: (_, provider, __) {
+          if (provider.channels.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.forum_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('No channels yet', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                ],
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: provider.channels.length,
+            itemBuilder: (_, i) {
+              final channel = provider.channels[i];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: channel.type == 'global'
+                        ? Colors.green.shade100
+                        : Colors.indigo.shade100,
+                    child: Icon(
+                      channel.type == 'global' ? Icons.public : Icons.tag,
+                      color: channel.type == 'global' ? Colors.green.shade700 : Colors.indigo.shade700,
+                    ),
+                  ),
+                  title: Text(channel.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(channel.type == 'global' ? 'Default channel' : 'Group channel',
+                      style: const TextStyle(fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _openChannel(channel),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildChat() {
+    final forum = context.read<ForumProvider>();
+    final channelName = forum.channels
+        .where((c) => c.id == forum.currentChannelId)
+        .map((c) => c.name)
+        .firstOrNull ?? 'Chat';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(channelName),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => setState(() => _showingChannels = true),
+        ),
       ),
       body: Column(
         children: [

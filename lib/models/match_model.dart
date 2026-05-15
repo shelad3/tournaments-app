@@ -1,3 +1,5 @@
+import 'match_result_model.dart';
+
 class MatchModel {
   final String id;
   final String tournamentId;
@@ -9,6 +11,9 @@ class MatchModel {
   final String? participant2Team;
   final String? winnerId;
   final bool completed;
+  final MatchReportStatus reportStatus;
+  final String? result1;
+  final String? result2;
 
   MatchModel({
     required this.id,
@@ -21,6 +26,9 @@ class MatchModel {
     this.participant2Team,
     this.winnerId,
     this.completed = false,
+    this.reportStatus = MatchReportStatus.none,
+    this.result1,
+    this.result2,
   });
 
   String? get winnerTeam =>
@@ -28,6 +36,8 @@ class MatchModel {
 
   bool get hasBothParticipants =>
       participant1Id != null && participant2Id != null;
+
+  bool get isBye => participant2Id == null;
 
   Map<String, dynamic> toMap() => {
     'tournamentId': tournamentId,
@@ -39,6 +49,9 @@ class MatchModel {
     'participant2Team': participant2Team,
     'winnerId': winnerId,
     'completed': completed,
+    'reportStatus': reportStatusToJson(reportStatus),
+    'result1': result1,
+    'result2': result2,
   };
 
   factory MatchModel.fromMap(Map<String, dynamic> map, String id) =>
@@ -53,6 +66,9 @@ class MatchModel {
         participant2Team: map['participant2Team'],
         winnerId: map['winnerId'],
         completed: map['completed'] ?? false,
+        reportStatus: reportStatusFromJson(map['reportStatus']),
+        result1: map['result1'],
+        result2: map['result2'],
       );
 
   MatchModel copyWith({
@@ -66,6 +82,9 @@ class MatchModel {
     String? participant2Team,
     String? winnerId,
     bool? completed,
+    MatchReportStatus? reportStatus,
+    String? result1,
+    String? result2,
   }) =>
       MatchModel(
         id: id ?? this.id,
@@ -78,5 +97,8 @@ class MatchModel {
         participant2Team: participant2Team ?? this.participant2Team,
         winnerId: winnerId ?? this.winnerId,
         completed: completed ?? this.completed,
+        reportStatus: reportStatus ?? this.reportStatus,
+        result1: result1 ?? this.result1,
+        result2: result2 ?? this.result2,
       );
 }
