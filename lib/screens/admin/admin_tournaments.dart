@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/tournament_model.dart';
+import '../../models/user_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/game_selector.dart';
 
 class AdminTournaments extends StatelessWidget {
@@ -9,19 +12,51 @@ class AdminTournaments extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final isSubAdmin = auth.isSubAdmin;
+    final userId = auth.user!.uid;
+
+    Query query = FirebaseFirestore.instance.collection('tournaments').orderBy('createdAt', descending: true);
+    if (isSubAdmin) {
+      query = query.where('createdBy', isEqualTo: userId);
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Tournaments')),
+      appBar: AppBar(
+        title: const Text('Manage Tournaments'),
+        actions: isSubAdmin
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  tooltip: 'My Limits',
+                  onPressed: () => _showLimits(context, auth.user!),
+                ),
+              ]
+            : null,
+      ),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
-        onPressed: () => _showForm(context),
+        onPressed: () => _showForm(context, auth),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('tournaments').orderBy('createdAt', descending: true).snapshots(),
+        stream: query.snapshots(),
         builder: (_, snap) {
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final tournaments = snap.data!.docs;
           if (tournaments.isEmpty) {
-            return const Center(child: Text('No tournaments yet', style: TextStyle(color: Colors.grey)));
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(isSubAdmin ? Icons.lock_outline : Icons.sports_soccer, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    isSubAdmin ? 'You haven\'t created any tournaments yet' : 'No tournaments yet',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
           }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -39,7 +74,7 @@ class AdminTournaments extends StatelessWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showForm(context, tournament: t)),
+                      IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showForm(context, auth, tournament: t)),
                       IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _delete(context, tournaments[i].id, t.title)),
                     ],
                   ),
@@ -48,6 +83,44 @@ class AdminTournaments extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+
+  void _showLimits(BuildContext context, UserModel user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Your Admin Limits'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (user.maxEntryFee != null)
+              _LimitRow(icon: Icons.money_off, label: 'Max entry fee', value: '${user.maxEntryFee} KES'),
+            if (user.maxDailyTournaments != null)
+              _LimitRow(icon: Icons.calendar_today, label: 'Max tournaments/day', value: '${user.maxDailyTournaments}'),
+            if (user.approvalRequired)
+              _LimitRow(icon: Icons.approval, label: 'Announcements', value: 'Need approval'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
+  Widget _LimitRow({required IconData icon, required String label, required String value}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.orange),
+          const SizedBox(width: 12),
+          Text('$label: ', style: const TextStyle(color: Colors.grey)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
@@ -69,8 +142,39 @@ class AdminTournaments extends StatelessWidget {
     }
   }
 
-  void _showForm(BuildContext context, {TournamentModel? tournament}) {
+  Future<bool> _checkDailyLimit(BuildContext context, AuthProvider auth) async {
+    final user = auth.user!;
+    if (user.maxDailyTournaments == null) return true;
+
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snap = await FirebaseFirestore.instance
+        .collection('tournaments')
+        .where('createdBy', isEqualTo: user.uid)
+        .where('createdAt', isGreaterThanOrEqualTo: startOfDay)
+        .where('createdAt', isLessThan: endOfDay)
+        .get();
+
+    if (snap.docs.length >= user.maxDailyTournaments!) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Daily limit reached (${user.maxDailyTournaments} tournaments). Wait until tomorrow.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
+  void _showForm(BuildContext context, AuthProvider auth, {TournamentModel? tournament}) {
     final isEdit = tournament != null;
+    final user = auth.user!;
+    final isSubAdmin = auth.isSubAdmin;
     final titleCtrl = TextEditingController(text: tournament?.title ?? '');
     final descCtrl = TextEditingController(text: tournament?.description ?? '');
     final feeCtrl = TextEditingController(text: tournament?.entryFee.toString() ?? '');
@@ -98,6 +202,11 @@ class AdminTournaments extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(isEdit ? 'Edit Tournament' : 'New Tournament', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                if (isSubAdmin && user.maxEntryFee != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('Max entry fee: ${user.maxEntryFee} KES', style: TextStyle(color: Colors.orange.shade700, fontSize: 12, fontWeight: FontWeight.w500)),
+                  ),
                 const SizedBox(height: 16),
                 TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Title')),
                 const SizedBox(height: 12),
@@ -194,6 +303,21 @@ class AdminTournaments extends StatelessWidget {
                   child: ElevatedButton(
                     child: Text(isEdit ? 'Update' : 'Create'),
                     onPressed: () async {
+                      final fee = int.tryParse(feeCtrl.text.trim()) ?? 0;
+
+                      if (isSubAdmin && !isEdit) {
+                        final ok = await _checkDailyLimit(context, auth);
+                        if (!ok) return;
+                      }
+
+                      if (isSubAdmin && isMoney && user.maxEntryFee != null && fee > user.maxEntryFee!) {
+                        if (!ctx.mounted) return;
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('Entry fee exceeds your limit of ${user.maxEntryFee} KES'), backgroundColor: Colors.red),
+                        );
+                        return;
+                      }
+
                       final minP = int.tryParse(minCtrl.text.trim());
                       final maxP = int.tryParse(maxCtrl.text.trim());
                       final data = {
@@ -202,7 +326,7 @@ class AdminTournaments extends StatelessWidget {
                         'signUpEndDate': signUpEnd,
                         'hostDate': startTime,
                         'entryType': isMoney ? 'money' : 'free',
-                        'entryFee': isMoney ? int.tryParse(feeCtrl.text.trim()) ?? 0 : 0,
+                        'entryFee': isMoney ? fee : 0,
                         'startTime': startTime,
                         'endTime': endTime,
                         'gameCategory': gameCategory,
@@ -210,7 +334,7 @@ class AdminTournaments extends StatelessWidget {
                         'platform': platform,
                         'minParticipants': minP,
                         'maxParticipants': maxP,
-                        'createdBy': 'admin',
+                        'createdBy': isSubAdmin ? user.uid : 'admin',
                         'createdAt': FieldValue.serverTimestamp(),
                       };
                       if (isEdit) {

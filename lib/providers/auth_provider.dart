@@ -19,6 +19,8 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _user != null;
   bool get isAdmin => _user?.isAdmin ?? false;
   bool get isSuperAdmin => _user?.isSuperAdmin ?? false;
+  bool get isSubAdmin => _user?.isSubAdmin ?? false;
+  bool get isFullAdmin => _user?.isFullAdmin ?? false;
 
   bool _authResolved = false;
 
@@ -108,8 +110,20 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateUserRole(String uid, UserRole role, List<String> permissions) async {
-    await _authService.updateUserRole(uid, role, permissions);
+  Future<void> updateUserRole(
+    String uid,
+    UserRole role,
+    List<String> permissions, {
+    int? maxEntryFee,
+    int? maxDailyTournaments,
+    bool approvalRequired = false,
+  }) async {
+    await _authService.updateUserRole(
+      uid, role, permissions,
+      maxEntryFee: maxEntryFee,
+      maxDailyTournaments: maxDailyTournaments,
+      approvalRequired: approvalRequired,
+    );
     await loadAllUsers();
   }
 

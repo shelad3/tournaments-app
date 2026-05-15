@@ -466,6 +466,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+                if (user.isAdmin) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: user.isSuperAdmin
+                            ? Colors.amber.withValues(alpha: 0.15)
+                            : user.isSubAdmin
+                                ? Colors.orange.withValues(alpha: 0.15)
+                                : Colors.blue.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            user.isSuperAdmin ? Icons.star : Icons.admin_panel_settings,
+                            size: 16,
+                            color: user.isSuperAdmin ? Colors.amber : user.isSubAdmin ? Colors.orange : Colors.blue,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(user.roleLabel,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13,
+                                color: user.isSuperAdmin ? Colors.amber.shade800 : user.isSubAdmin ? Colors.orange.shade800 : Colors.blue.shade800,
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 if (_loadingStats)
                   const Center(child: CircularProgressIndicator())

@@ -1,4 +1,4 @@
-enum UserRole { user, admin, superAdmin }
+enum UserRole { user, subAdmin, admin, superAdmin }
 
 class UserModel {
   final String uid;
@@ -11,6 +11,9 @@ class UserModel {
   final List<String> favoriteGames;
   final UserRole role;
   final List<String> permissions;
+  final int? maxEntryFee;
+  final int? maxDailyTournaments;
+  final bool approvalRequired;
   final DateTime createdAt;
 
   UserModel({
@@ -24,11 +27,25 @@ class UserModel {
     this.favoriteGames = const [],
     this.role = UserRole.user,
     this.permissions = const [],
+    this.maxEntryFee,
+    this.maxDailyTournaments,
+    this.approvalRequired = false,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  bool get isAdmin => role == UserRole.admin || role == UserRole.superAdmin;
+  bool get isAdmin => role == UserRole.admin || role == UserRole.superAdmin || role == UserRole.subAdmin;
   bool get isSuperAdmin => role == UserRole.superAdmin;
+  bool get isFullAdmin => role == UserRole.admin || role == UserRole.superAdmin;
+  bool get isSubAdmin => role == UserRole.subAdmin;
+
+  String get roleLabel {
+    switch (role) {
+      case UserRole.subAdmin: return 'Sub Admin';
+      case UserRole.admin: return 'Admin';
+      case UserRole.superAdmin: return 'Super Admin';
+      default: return 'User';
+    }
+  }
 
   bool hasPermission(String permission) =>
       isSuperAdmin || permissions.contains(permission);
@@ -44,6 +61,9 @@ class UserModel {
     'favoriteGames': favoriteGames,
     'role': role.name,
     'permissions': permissions,
+    'maxEntryFee': maxEntryFee,
+    'maxDailyTournaments': maxDailyTournaments,
+    'approvalRequired': approvalRequired,
     'createdAt': createdAt,
   };
 
@@ -58,11 +78,16 @@ class UserModel {
     favoriteGames: List<String>.from(map['favoriteGames'] ?? []),
     role: _parseRole(map['role']),
     permissions: List<String>.from(map['permissions'] ?? []),
+    maxEntryFee: map['maxEntryFee'],
+    maxDailyTournaments: map['maxDailyTournaments'],
+    approvalRequired: map['approvalRequired'] ?? false,
     createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
   );
 
   static UserRole _parseRole(String? role) {
     switch (role) {
+      case 'subAdmin':
+        return UserRole.subAdmin;
       case 'admin':
         return UserRole.admin;
       case 'superAdmin':

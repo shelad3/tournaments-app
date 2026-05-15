@@ -15,8 +15,11 @@ class AuthService {
       email == superAdminEmail ? UserRole.superAdmin : UserRole.user;
 
   static List<String> _permissionsForRole(UserRole role) {
-    if (role == UserRole.superAdmin) {
+    if (role == UserRole.superAdmin || role == UserRole.admin) {
       return ['manage_tournaments', 'manage_messages', 'manage_admins', 'view_participants'];
+    }
+    if (role == UserRole.subAdmin) {
+      return ['manage_tournaments', 'manage_messages', 'view_participants'];
     }
     return [];
   }
@@ -71,9 +74,27 @@ class AuthService {
     return snap.docs.map((doc) => UserModel.fromMap(doc.data(), doc.id)).toList();
   }
 
-  Future<void> updateUserRole(String uid, UserRole role, List<String> permissions) =>
-      _firestore.collection('users').doc(uid).update({
-        'role': role.name,
-        'permissions': permissions,
-      });
+  Future<void> updateUserRole(
+    String uid,
+    UserRole role,
+    List<String> permissions, {
+    int? maxEntryFee,
+    int? maxDailyTournaments,
+    bool approvalRequired = false,
+  }) async {
+    final data = <String, dynamic>{
+      'role': role.name,
+      'permissions': permissions,
+    };
+    if (role == UserRole.subAdmin) {
+      data['maxEntryFee'] = maxEntryFee;
+      data['maxDailyTournaments'] = maxDailyTournaments;
+      data['approvalRequired'] = approvalRequired;
+    } else {
+      data['maxEntryFee'] = null;
+      data['maxDailyTournaments'] = null;
+      data['approvalRequired'] = false;
+    }
+    await _firestore.collection('users').doc(uid).update(data);
+  }
 }

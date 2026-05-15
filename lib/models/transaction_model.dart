@@ -5,6 +5,7 @@ class TransactionModel {
   final String userId;
   final TransactionType type;
   final int amount;
+  final int fee;
   final int interestPaid;
   final String? reference;
   final DateTime createdAt;
@@ -14,6 +15,7 @@ class TransactionModel {
     required this.userId,
     required this.type,
     required this.amount,
+    this.fee = 0,
     this.interestPaid = 0,
     this.reference,
     DateTime? createdAt,
@@ -38,6 +40,7 @@ class TransactionModel {
     'userId': userId,
     'type': _typeToDb(type),
     'amount': amount,
+    'fee': fee,
     'interestPaid': interestPaid,
     'reference': reference,
     'createdAt': createdAt,
@@ -48,6 +51,7 @@ class TransactionModel {
     userId: map['userId'] ?? '',
     type: _parseType(map['type']),
     amount: map['amount'] ?? 0,
+    fee: map['fee'] ?? 0,
     interestPaid: map['interestPaid'] ?? 0,
     reference: map['reference'],
     createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),

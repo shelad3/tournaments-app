@@ -91,7 +91,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 border: Border.all(color: Colors.amber.shade200),
               ),
               child: Text(
-                _user!.isSuperAdmin ? 'Super Admin' : 'Admin',
+                _user!.roleLabel,
                 style: TextStyle(color: Colors.amber.shade800, fontWeight: FontWeight.w600),
               ),
             ),

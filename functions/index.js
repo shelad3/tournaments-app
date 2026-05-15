@@ -185,8 +185,14 @@ exports.checkTransactionStatus = onCall(async (request) => {
   return { status: doc.data().status };
 });
 
+function withdrawalFee(amount) {
+  if (amount >= 50 && amount <= 1000) return 15;
+  if (amount <= 5000) return 30;
+  return 50;
+}
+
 // ===================================================================
-// 4. Withdrawal (B2C)
+// 4. Withdrawal (B2C) with Betika-style fee
 // ===================================================================
 exports.withdraw = onCall(async (request) => {
     assertAuth(request);
@@ -195,6 +201,9 @@ exports.withdraw = onCall(async (request) => {
 
     if (!phone || !amount) throw new HttpsError('invalid-argument', 'Missing fields');
     if (amount < 50) throw new HttpsError('invalid-argument', 'Minimum withdrawal is 50 KES');
+
+    const fee = withdrawalFee(amount);
+    const sendAmount = amount - fee;
 
     // Verify user identity
     const userDoc = await db.collection('users').doc(userId).get();
@@ -210,21 +219,38 @@ exports.withdraw = onCall(async (request) => {
     const balance = walletDoc.data().balance || 0;
     if (balance < amount) throw new HttpsError('failed-precondition', 'Insufficient balance');
 
-    // Deduct from wallet
+    // Deduct from wallet, credit fee to platform
     await db.runTransaction(async (tx) => {
       const ref = db.collection('wallets').doc(userId);
+      const sRef = db.collection('admin').doc('super_wallet');
       const doc = await tx.get(ref);
+      const sDoc = await tx.get(sRef);
+
       tx.update(ref, {
         balance: admin.firestore.FieldValue.increment(-amount),
         totalWithdrawn: admin.firestore.FieldValue.increment(amount),
       });
+
+      if (sDoc.exists) {
+        tx.update(sRef, {
+          platformEarnings: admin.firestore.FieldValue.increment(fee),
+          totalProcessed: admin.firestore.FieldValue.increment(fee),
+        });
+      } else {
+        tx.set(sRef, {
+          prizePool: 0,
+          platformEarnings: fee,
+          totalProcessed: fee,
+        });
+      }
     });
 
-    // Record transaction
+    // Record withdrawal transaction
     await db.collection('transactions').add({
       userId,
       type: 'withdrawal',
       amount,
+      fee,
       reference: `wd_${Date.now()}`,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -243,7 +269,7 @@ exports.withdraw = onCall(async (request) => {
             InitiatorName: 'testapi',
             SecurityCredential: '',
             CommandID: 'BusinessPayment',
-            Amount: amount,
+            Amount: sendAmount,
             PartyA: sc,
             PartyB: phone,
             Remarks: 'Tournaments Withdrawal',
@@ -257,7 +283,7 @@ exports.withdraw = onCall(async (request) => {
       console.error('B2C error:', err.message);
     }
 
-    return { success: true, message: 'Withdrawal processed' };
+    return { success: true, message: `Withdrawal processed (${sendAmount} KES sent, ${fee} KES fee)` };
   }
 );
 
@@ -329,9 +355,9 @@ exports.payTournamentFee = onCall(async (request) => {
 exports.awardPrize = onCall(async (request) => {
   assertAuth(request);
 
-  // Only admins can award prizes
   const adminDoc = await db.collection('users').doc(request.auth.uid).get();
-  if (!adminDoc.exists || adminDoc.data().isAdmin !== true) {
+  const adminRole = adminDoc.data()?.role;
+  if (!adminRole || !['admin', 'superAdmin', 'subAdmin'].includes(adminRole)) {
     throw new HttpsError('permission-denied', 'Only admins can award prizes');
   }
 

@@ -50,8 +50,41 @@ class AdminDashboard extends StatelessWidget {
                       Text('Welcome, ${auth.user?.fullName ?? 'Admin'}',
                           style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text(auth.isSuperAdmin ? 'Super Admin' : 'Admin',
-                          style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: auth.isSuperAdmin
+                                  ? Colors.amber.withValues(alpha: 0.15)
+                                  : auth.isSubAdmin
+                                      ? Colors.orange.withValues(alpha: 0.15)
+                                      : Colors.blue.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              auth.user?.roleLabel ?? 'Admin',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 12,
+                                color: auth.isSuperAdmin
+                                    ? Colors.amber.shade800
+                                    : auth.isSubAdmin
+                                        ? Colors.orange.shade800
+                                        : Colors.blue.shade800,
+                              ),
+                            ),
+                          ),
+                          if (auth.isSubAdmin && auth.user != null) ...[
+                            const SizedBox(width: 8),
+                            if (auth.user!.maxEntryFee != null)
+                              _LimitChip(icon: Icons.money_off, label: 'Max ${auth.user!.maxEntryFee} KES'),
+                            if (auth.user!.maxDailyTournaments != null)
+                              _LimitChip(icon: Icons.calendar_today, label: '${auth.user!.maxDailyTournaments}/day'),
+                            if (auth.user!.approvalRequired)
+                              _LimitChip(icon: Icons.approval, label: 'Needs approval'),
+                          ],
+                        ],
+                      ),
                       const SizedBox(height: 24),
                       _StatGrid(
                         stats: [
@@ -68,7 +101,7 @@ class AdminDashboard extends StatelessWidget {
                         _ActionCard(
                           icon: Icons.add_circle,
                           label: 'Manage Tournaments',
-                          desc: 'Create, edit or delete tournaments',
+                          desc: auth.isSubAdmin ? 'Create, edit or delete your tournaments' : 'Create, edit or delete tournaments',
                           color: Colors.blue,
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminTournaments())),
                         ),
@@ -78,7 +111,9 @@ class AdminDashboard extends StatelessWidget {
                           child: _ActionCard(
                             icon: Icons.add_comment,
                             label: 'Manage Announcements',
-                            desc: 'Create, edit or delete announcements',
+                            desc: auth.isSubAdmin && (auth.user?.approvalRequired ?? false)
+                                ? 'Create announcements (requires approval)'
+                                : 'Create, edit or delete announcements',
                             color: Colors.orange,
                             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminMessages())),
                           ),
@@ -113,6 +148,31 @@ class AdminDashboard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LimitChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _LimitChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.orange.shade700),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.orange.shade700, fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }

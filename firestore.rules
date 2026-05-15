@@ -10,16 +10,16 @@ function isOwner(userId) {
   return request.auth != null && request.auth.uid == userId;
 }
 
-// Helper: check if user is admin (reads from user doc)
+// Helper: check if user has admin role (any admin tier)
 function isAdmin() {
   return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superAdmin', 'subAdmin'];
 }
 
-// Helper: check if user is super admin
+// Helper: check if user is super admin only
 function isSuperAdmin() {
   return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superAdmin';
 }
 
 service cloud.firestore {
@@ -27,10 +27,7 @@ service cloud.firestore {
 
     // ===== USERS =====
     match /users/{userId} {
-      // Users can read any public profile
       allow read: if isAuth();
-      // Users can write only their own document
-      // Admins can write any user document (for management)
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isOwner(userId) || isSuperAdmin();
@@ -38,22 +35,18 @@ service cloud.firestore {
 
     // ===== TOURNAMENTS =====
     match /tournaments/{tournamentId} {
-      // Anyone authenticated can read tournaments
       allow read: if isAuth();
-      // Only admins can create/update/delete tournaments
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isSuperAdmin();
+    }
 
-      // ===== PARTICIPANTS (subcollection) =====
-      match /participants/{participantId} {
-        allow read: if isAuth();
-        // Users can join (create their own participant doc)
-        // Users cannot update (accepted/paid status is admin-only)
-        allow create: if isOwner(participantId);
-        allow update: if isAdmin();
-        allow delete: if isAdmin();
-      }
+    // ===== PARTICIPATIONS (top-level collection) =====
+    match /participations/{partId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // ===== MATCHES (for brackets) =====
@@ -65,18 +58,14 @@ service cloud.firestore {
     // ===== WALLETS =====
     match /wallets/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      // Wallet is created by the system on first deposit
       allow create: if isOwner(userId);
-      // Only the system (or admin) can update wallet balances
       allow update: if isAdmin();
       allow delete: if isSuperAdmin();
     }
 
     // ===== TRANSACTIONS =====
     match /transactions/{transactionId} {
-      // Users can read their own transactions; admins can read all
       allow read: if isOwner(resource.data.userId) || isAdmin();
-      // Transactions are created by the system (or admin)
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isSuperAdmin();
@@ -85,15 +74,15 @@ service cloud.firestore {
     // ===== MESSAGES (Admin Announcements) =====
     match /messages/{messageId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // ===== FORUM MESSAGES =====
     match /forum_messages/{messageId} {
       allow read: if isAuth();
-      // Any authenticated user can post
       allow create: if isAuth();
-      // Users can edit/delete their own posts; admins can moderate
       allow update: if isOwner(resource.data.userId) || isAdmin();
       allow delete: if isOwner(resource.data.userId) || isAdmin();
     }
@@ -107,16 +96,13 @@ service cloud.firestore {
     // ===== FOLLOWS =====
     match /follows/{followId} {
       allow read: if isAuth();
-      // Users can follow/unfollow (create/delete their own follows)
       allow create: if isAuth();
       allow delete: if isAuth();
-      // No update needed for follows
     }
 
     // ===== CHAT MESSAGES (tournament chats) =====
     match /tournaments/{tournamentId}/chat/{messageId} {
       allow read: if isAuth();
-      // Only participants can send chat messages
       allow create: if isAuth();
       allow update, delete: if isAdmin();
     }
@@ -128,7 +114,7 @@ service cloud.firestore {
     }
 
     // ===== SUPER WALLET =====
-    match /super_wallet/{docId} {
+    match /admin/{docId} {
       allow read: if isAdmin();
       allow write: if isSuperAdmin();
     }

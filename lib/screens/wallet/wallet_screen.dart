@@ -157,70 +157,83 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
     }
   }
 
+  String _withdrawalFeeHelp(int amount) {
+    if (amount < WalletService.minWithdrawal) return '';
+    final fee = WalletService.calculateWithdrawalFee(amount);
+    final net = amount - fee;
+    return 'Fee: $fee KES • You receive: $net KES';
+  }
+
   void _showWithdrawDialog() {
     final auth = context.read<AuthProvider>();
     final registeredPhone = auth.user?.phoneNumber ?? '';
-    _amountController.clear();
-    _phoneController.text = registeredPhone;
+    int amount = 0;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Withdraw to M-Pesa'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _amountController,
-              decoration: const InputDecoration(
-                labelText: 'Amount (KES)',
-                prefixIcon: Icon(Icons.money_off),
-                helperText: 'Min ${WalletService.minWithdrawal} KES',
+      builder: (ctx) => StatefulBuilder(
+        builder: (_, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Withdraw to M-Pesa'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Amount (KES)',
+                  prefixIcon: Icon(Icons.money_off),
+                  helperText: 'Min ${WalletService.minWithdrawal} KES',
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (v) => setDialogState(() => amount = int.tryParse(v.trim()) ?? 0),
               ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _phoneController,
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'M-Pesa Phone Number',
-                prefixIcon: const Icon(Icons.phone_android),
-                hintText: '0712345678',
-                helperText: 'Only your registered number can withdraw',
-                helperStyle: TextStyle(color: Colors.red.shade400, fontSize: 11),
-                filled: true,
-                fillColor: Colors.grey.shade100,
+              const SizedBox(height: 4),
+              if (amount >= WalletService.minWithdrawal)
+                Text(
+                  _withdrawalFeeHelp(amount),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _phoneController..text = registeredPhone,
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: 'M-Pesa Phone Number',
+                  prefixIcon: const Icon(Icons.phone_android),
+                  hintText: '0712345678',
+                  helperText: 'Only your registered number can withdraw',
+                  helperStyle: TextStyle(color: Colors.red.shade400, fontSize: 11),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                ),
+                keyboardType: TextInputType.phone,
               ),
-              keyboardType: TextInputType.phone,
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                final phone = registeredPhone;
+                if (amount < WalletService.minWithdrawal) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Minimum withdrawal: ${WalletService.minWithdrawal} KES'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                if (phone.isEmpty || phone.length < 10) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Enter a valid M-Pesa number'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                _initiateWithdrawal(amount, phone);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Withdraw to M-Pesa'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final amount = int.tryParse(_amountController.text.trim());
-              final phone = _phoneController.text.trim();
-              if (amount == null || amount < WalletService.minWithdrawal) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(content: Text('Minimum withdrawal: ${WalletService.minWithdrawal} KES'), backgroundColor: Colors.red),
-                );
-                return;
-              }
-              if (phone.isEmpty || phone.length < 10) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Enter a valid M-Pesa number'), backgroundColor: Colors.red),
-                );
-                return;
-              }
-              Navigator.pop(ctx);
-              _initiateWithdrawal(amount, phone);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Withdraw to M-Pesa'),
-          ),
-        ],
       ),
     );
   }

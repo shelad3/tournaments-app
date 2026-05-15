@@ -11,6 +11,14 @@ class WalletService {
   static const int minDepositPerTransaction = 30;
   static const int minWithdrawal = 50;
 
+  static int calculateWithdrawalFee(int amount) {
+    if (amount >= 50 && amount <= 1000) return 15;
+    if (amount <= 5000) return 30;
+    return 50;
+  }
+
+  static int amountAfterFee(int amount) => amount - calculateWithdrawalFee(amount);
+
   Future<WalletModel?> getWallet(String userId) async {
     final doc = await _firestore.collection('wallets').doc(userId).get();
     if (!doc.exists) return null;
