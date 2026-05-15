@@ -129,7 +129,11 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                   labelText: 'Full Name',
                                   prefixIcon: Icon(Icons.person_outlined),
                                 ),
-                                validator: (v) => v == null || v.isEmpty ? 'Enter your name' : null,
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return 'Enter your name';
+                                  if (v.trim().length < 2) return 'Name too short';
+                                  return null;
+                                },
                               ),
                               const SizedBox(height: 14),
                               TextFormField(
@@ -141,7 +145,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (v) {
                                   if (v == null || v.isEmpty) return 'Enter your email';
-                                  if (!v.contains('@')) return 'Invalid email';
+                                  final regex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,}$');
+                                  if (!regex.hasMatch(v.trim())) return 'Invalid email format';
                                   return null;
                                 },
                               ),
@@ -152,7 +157,12 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                   labelText: 'Username',
                                   prefixIcon: Icon(Icons.alternate_email),
                                 ),
-                                validator: (v) => v == null || v.isEmpty ? 'Choose a username' : null,
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) return 'Choose a username';
+                                  if (v.trim().length < 3) return 'At least 3 characters';
+                                  if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v.trim())) return 'Letters, numbers, underscore only';
+                                  return null;
+                                },
                               ),
                               const SizedBox(height: 14),
                               TextFormField(
@@ -160,11 +170,14 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                 decoration: const InputDecoration(
                                   labelText: 'Phone Number',
                                   prefixIcon: Icon(Icons.phone_outlined),
+                                  hintText: '07XX XXX XXX or 2547XX XXX XXX',
                                 ),
                                 keyboardType: TextInputType.phone,
                                 validator: (v) {
                                   if (v == null || v.isEmpty) return 'Enter your phone number';
-                                  if (v.length < 10) return 'Invalid phone number';
+                                  final cleaned = v.replaceAll(RegExp(r'\s+'), '');
+                                  if (cleaned.length < 10 || cleaned.length > 13) return 'Invalid phone number';
+                                  if (!RegExp(r'^(0|254|\+254)\d{9}$').hasMatch(cleaned)) return 'Enter a valid Kenyan number (e.g. 0712345678)';
                                   return null;
                                 },
                               ),
@@ -182,7 +195,9 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                 obscureText: _obscurePassword,
                                 validator: (v) {
                                   if (v == null || v.isEmpty) return 'Enter a password';
-                                  if (v.length < 6) return 'At least 6 characters';
+                                  if (v.length < 8) return 'At least 8 characters';
+                                  if (!RegExp(r'[A-Za-z]').hasMatch(v)) return 'Must contain a letter';
+                                  if (!RegExp(r'[0-9]').hasMatch(v)) return 'Must contain a number';
                                   return null;
                                 },
                               ),
