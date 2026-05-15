@@ -47,3 +47,7 @@ app.*.map.json
 # Keystore and signing config
 android/key.properties
 *.jks
+
+# Node modules
+functions/node_modules/
+functions/.env.*
