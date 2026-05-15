@@ -141,6 +141,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         if (!provider.hasLoaded) {
           return const ShimmerList(itemHeight: 180);
         }
+        if (provider.error != null && provider.tournaments.isEmpty) {
+          return EmptyState(
+            icon: Icons.wifi_off,
+            title: 'Connection error',
+            subtitle: provider.error,
+            action: ElevatedButton.icon(
+              onPressed: () => provider.loadTournaments(),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
+            ),
+          );
+        }
         final filtered = _applyFilters(provider.tournaments);
         if (filtered.isEmpty) {
           return EmptyState(

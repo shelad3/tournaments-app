@@ -10,28 +10,55 @@ class ForumProvider extends ChangeNotifier {
   List<ForumMessageModel> _messages = [];
   List<ChannelModel> _channels = [];
   bool _isLoading = false;
+  bool _channelsLoaded = false;
   String? _currentChannelId;
+  String? _error;
 
   List<ForumMessageModel> get messages => _messages;
   List<ChannelModel> get channels => _channels;
   bool get isLoading => _isLoading;
+  bool get channelsLoaded => _channelsLoaded;
   String? get currentChannelId => _currentChannelId;
+  String? get error => _error;
 
   void loadChannels() {
-    _service.getChannels().listen((channels) {
-      _channels = channels;
-      notifyListeners();
-    });
+    _channelsLoaded = false;
+    _error = null;
+    notifyListeners();
+    _service.getChannels().timeout(
+      const Duration(seconds: 15),
+      onTimeout: (sink) => sink.addError('Connection timed out'),
+    ).listen(
+      (channels) {
+        _channels = channels;
+        _channelsLoaded = true;
+        notifyListeners();
+      },
+      onError: (e) {
+        _error = 'Could not load channels.';
+        _channelsLoaded = true;
+        notifyListeners();
+      },
+    );
   }
 
   void switchChannel(String channelId) {
     _currentChannelId = channelId;
     _messages = [];
     notifyListeners();
-    _service.getMessages(channelId).listen((messages) {
-      _messages = messages;
-      notifyListeners();
-    });
+    _service.getMessages(channelId).timeout(
+      const Duration(seconds: 15),
+      onTimeout: (sink) => sink.addError('Connection timed out'),
+    ).listen(
+      (messages) {
+        _messages = messages;
+        notifyListeners();
+      },
+      onError: (e) {
+        _error = 'Could not load messages.';
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> sendText({

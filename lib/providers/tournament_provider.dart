@@ -42,28 +42,53 @@ class TournamentProvider extends ChangeNotifier {
 
   void loadTournaments() {
     _hasLoaded = false;
+    _error = null;
     notifyListeners();
-    _service.getTournaments().listen((tournaments) {
-      _tournaments = tournaments;
-      _hasLoaded = true;
-      notifyListeners();
-    });
+    _service.getTournaments().timeout(
+      const Duration(seconds: 15),
+      onTimeout: (sink) => sink.addError('Connection timed out'),
+    ).listen(
+      (tournaments) {
+        _tournaments = tournaments;
+        _hasLoaded = true;
+        notifyListeners();
+      },
+      onError: (e) {
+        _error = 'Could not load tournaments. Check your connection.';
+        _hasLoaded = true;
+        notifyListeners();
+      },
+    );
   }
 
   void loadUserParticipations(String userId) {
     _userParticipationsLoaded = false;
-    _service.getUserParticipations(userId).listen((participations) {
-      _userParticipations = participations;
-      _userParticipationsLoaded = true;
-      notifyListeners();
-    });
+    _service.getUserParticipations(userId).timeout(
+      const Duration(seconds: 15),
+      onTimeout: (sink) => sink.addError('Connection timed out'),
+    ).listen(
+      (participations) {
+        _userParticipations = participations;
+        _userParticipationsLoaded = true;
+        notifyListeners();
+      },
+      onError: (e) {
+        _userParticipationsLoaded = true;
+        notifyListeners();
+      },
+    );
   }
 
   Future<Map<String, int>> loadParticipantCounts(String tournamentId) async {
-    final counts = await _service.getParticipantCounts(tournamentId);
-    _participantCounts[tournamentId] = counts;
-    notifyListeners();
-    return counts;
+    try {
+      final counts = await _service.getParticipantCounts(tournamentId)
+          .timeout(const Duration(seconds: 10));
+      _participantCounts[tournamentId] = counts;
+      notifyListeners();
+      return counts;
+    } catch (_) {
+      return {'yes': 0, 'no': 0, 'total': 0};
+    }
   }
 
   Future<bool> participate({
@@ -104,8 +129,13 @@ class TournamentProvider extends ChangeNotifier {
   }
 
   Future<List<ParticipationModel>> getTournamentParticipants(String tournamentId) async {
-    final snap = await _service.getTournamentParticipants(tournamentId).first;
-    return snap;
+    try {
+      final snap = await _service.getTournamentParticipants(tournamentId)
+          .timeout(const Duration(seconds: 10)).first;
+      return snap;
+    } catch (_) {
+      return [];
+    }
   }
 
   Stream<List<ParticipationModel>> getParticipantsStream(String tournamentId) =>
