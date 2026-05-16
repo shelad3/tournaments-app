@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.5.0",
-  "latestBuildNumber": 9,
-  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.5.0/app-release.apk",
-  "changelog": "Firestore indexes deployed for forum_channels\nAdmin-only channel creation in forum\nChannel type system: public / admin-only with post restrictions\nTournament passcode: optional 6-digit lock on join\nProfile image upload: 5MB size limit with clear error messages\nTournament format: group stage config, templates, auto-generate bracket"
+  "latestVersion": "1.6.0",
+  "latestBuildNumber": 10,
+  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.6.0/app-release.apk",
+  "changelog": "Forum channels fixed: no more disappearing channels\nReal-time admin role sync: changes apply instantly\nHardcoded super admin email\nManage Admins visible to all full admins\nAdmin dashboard refresh button\nLoading indicator in forum (no flash empty state)\nEmail deliverability: use custom domain with SPF/DKIM"
 }

@@ -20,12 +20,17 @@ class AdminDashboard extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         actions: [
-          if (auth.isSuperAdmin)
+          if (auth.user?.hasPermission('manage_admins') == true)
             IconButton(
               icon: const Icon(Icons.people),
               tooltip: 'Manage Admins',
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminManageAdmins())),
             ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh permissions',
+            onPressed: () => context.read<AuthProvider>().refreshUser(),
+          ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(

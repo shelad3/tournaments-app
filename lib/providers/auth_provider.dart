@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +12,7 @@ class AuthProvider extends ChangeNotifier {
   List<UserModel> _allUsers = [];
   bool _isLoading = false;
   String? _error;
+  StreamSubscription? _userSub;
 
   UserModel? get user => _user;
   List<UserModel> get allUsers => _allUsers;
@@ -30,8 +32,45 @@ class AuthProvider extends ChangeNotifier {
     _authService.authState.listen(_onAuthStateChanged);
   }
 
+  void _forceSuperAdmin() {
+    if (_user != null && _user!.email == AuthService.superAdminEmail && _user!.role != UserRole.superAdmin) {
+      _user = UserModel(
+        uid: _user!.uid,
+        fullName: _user!.fullName,
+        email: _user!.email,
+        username: _user!.username,
+        phoneNumber: _user!.phoneNumber,
+        photoUrl: _user!.photoUrl,
+        favoriteTeam: _user!.favoriteTeam,
+        favoriteGames: _user!.favoriteGames,
+        role: UserRole.superAdmin,
+        permissions: const ['manage_tournaments', 'manage_messages', 'manage_admins', 'view_participants'],
+        emailVerified: _user!.emailVerified,
+        createdAt: _user!.createdAt,
+      );
+    }
+  }
+
+  void _listenToUserDoc(String uid) {
+    _userSub?.cancel();
+    _userSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists) {
+        _user = UserModel.fromMap(doc.data()!, doc.id);
+        _forceSuperAdmin();
+        _authResolved = true;
+        notifyListeners();
+      }
+    });
+  }
+
   void _onAuthStateChanged(User? firebaseUser) async {
     if (firebaseUser == null) {
+      _userSub?.cancel();
+      _userSub = null;
       _user = null;
       _authResolved = true;
       notifyListeners();
@@ -40,9 +79,11 @@ class AuthProvider extends ChangeNotifier {
     final doc = await FirebaseFirestore.instance.collection('users').doc(firebaseUser.uid).get();
     if (doc.exists) {
       _user = UserModel.fromMap(doc.data()!, doc.id);
+      _forceSuperAdmin();
     }
     _authResolved = true;
     notifyListeners();
+    _listenToUserDoc(firebaseUser.uid);
   }
 
   Future<bool> signUp({
@@ -83,6 +124,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _user = await _authService.signIn(email: email, password: password);
+      _forceSuperAdmin();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -162,6 +204,7 @@ class AuthProvider extends ChangeNotifier {
     final doc = await FirebaseFirestore.instance.collection('users').doc(_user!.uid).get();
     if (doc.exists) {
       _user = UserModel.fromMap(doc.data()!, doc.id);
+      _forceSuperAdmin();
       notifyListeners();
     }
   }

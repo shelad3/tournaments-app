@@ -124,12 +124,12 @@ class ForumService {
         .limit(1)
         .get();
     if (existing.docs.isEmpty) {
-      await _firestore.collection('forum_channels').add({
-        'name': 'General',
-        'type': 'global',
-        'createdBy': 'system',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await _firestore.collection('forum_channels').add(ChannelModel(
+        id: '',
+        name: 'General',
+        type: ChannelType.global,
+        createdBy: 'system',
+      ).toMap());
     }
   }
 }

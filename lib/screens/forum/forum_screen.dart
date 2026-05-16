@@ -27,9 +27,7 @@ class _ForumScreenState extends State<ForumScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final forum = context.read<ForumProvider>();
-      forum.loadChannels();
-      forum.ensureGlobalChannel();
+      context.read<ForumProvider>().ensureGlobalChannel();
     });
   }
 
@@ -180,6 +178,9 @@ class _ForumScreenState extends State<ForumScreen> {
               ),
             );
           }
+          if (!provider.channelsLoaded) {
+            return const Center(child: CircularProgressIndicator());
+          }
           if (provider.channels.isEmpty) {
             return const Center(
               child: Column(
@@ -201,16 +202,16 @@ class _ForumScreenState extends State<ForumScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: channel.type == 'global'
+                    backgroundColor: channel.type == ChannelType.global
                         ? Colors.green.shade100
                         : Colors.indigo.shade100,
                     child: Icon(
-                      channel.type == 'global' ? Icons.public : Icons.tag,
-                      color: channel.type == 'global' ? Colors.green.shade700 : Colors.indigo.shade700,
+                      channel.type == ChannelType.global ? Icons.public : Icons.tag,
+                      color: channel.type == ChannelType.global ? Colors.green.shade700 : Colors.indigo.shade700,
                     ),
                   ),
                   title: Text(channel.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(channel.type == 'global' ? 'Default channel' : 'Group channel',
+                  subtitle: Text(channel.type == ChannelType.global ? 'Default channel' : channel.typeLabel,
                       style: const TextStyle(fontSize: 12)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _openChannel(channel),

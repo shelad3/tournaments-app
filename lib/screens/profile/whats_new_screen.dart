@@ -5,6 +5,34 @@ class WhatsNewScreen extends StatelessWidget {
 
   static const _versions = [
     _VersionEntry(
+      version: '1.6.0',
+      date: 'May 2026',
+      features: [
+        'Real-time admin role sync: role changes apply instantly without re-login',
+        'Hardcoded super admin: sheldonramu8@gmail.com always treated as Super Admin',
+        'Manage Admins available to all full admins (not just Super Admin)',
+        'Admin dashboard refresh button to manually re-sync permissions',
+        'Forum channels fixed: channels no longer disappear after creation',
+        'Forum loading indicator shown instead of flash empty state',
+        'Forum channel type labels display correctly',
+        'Consistent timestamps in channel creation',
+      ],
+    ),
+    _VersionEntry(
+      version: '1.5.0',
+      date: 'May 2026',
+      features: [
+        'Tournament passcode: optional 6-digit numeric lock on join',
+        'Channel type system: Public (everyone read/write) and Admin Only (only admins post)',
+        'Admin-only forum channel creation',
+        'Tournament templates: save/load tournament configurations',
+        'Tournament format options: Single Elimination, Group Stage + Playoffs, Double Elimination',
+        'Auto-generate bracket one-click from tournament setup',
+        'Profile image upload: 5MB size limit with clear error messages',
+        'Firestore composite indexes deployed for forum channels',
+      ],
+    ),
+    _VersionEntry(
       version: '1.4.0',
       date: 'May 2026',
       features: [

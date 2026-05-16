@@ -9,11 +9,11 @@ class UpcomingFeaturesScreen extends StatelessWidget {
       color: Colors.amber,
       title: 'Tournament Enhancements',
       items: [
-        'Multi-stage tournaments (group stage → playoffs)',
-        'Double-elimination bracket option',
         'Team/crew tournaments with roster management',
-        'Tournament templates for quick creation',
-        'Auto-generate matches as participants join',
+        'Live match streaming and spectator mode',
+        'Best-of series support (Bo3, Bo5)',
+        'Tournament replay and VOD sharing',
+        'Custom rule sets per tournament',
       ],
     ),
     _FeatureGroup(

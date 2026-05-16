@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/forum_message_model.dart';
@@ -13,6 +14,8 @@ class ForumProvider extends ChangeNotifier {
   bool _channelsLoaded = false;
   String? _currentChannelId;
   String? _error;
+  StreamSubscription<List<ChannelModel>>? _channelSub;
+  StreamSubscription<List<ForumMessageModel>>? _messageSub;
 
   List<ForumMessageModel> get messages => _messages;
   List<ChannelModel> get channels => _channels;
@@ -22,16 +25,18 @@ class ForumProvider extends ChangeNotifier {
   String? get error => _error;
 
   void loadChannels() {
+    _channelSub?.cancel();
     _channelsLoaded = false;
     _error = null;
     notifyListeners();
-    _service.getChannels().timeout(
+    _channelSub = _service.getChannels().timeout(
       const Duration(seconds: 15),
       onTimeout: (sink) => sink.addError('Connection timed out'),
     ).listen(
       (channels) {
         _channels = channels;
         _channelsLoaded = true;
+        _error = null;
         notifyListeners();
       },
       onError: (e) {
@@ -43,10 +48,11 @@ class ForumProvider extends ChangeNotifier {
   }
 
   void switchChannel(String channelId) {
+    _messageSub?.cancel();
     _currentChannelId = channelId;
     _messages = [];
     notifyListeners();
-    _service.getMessages(channelId).timeout(
+    _messageSub = _service.getMessages(channelId).timeout(
       const Duration(seconds: 15),
       onTimeout: (sink) => sink.addError('Connection timed out'),
     ).listen(
@@ -115,5 +121,12 @@ class ForumProvider extends ChangeNotifier {
 
   Future<void> ensureGlobalChannel() async {
     await _service.ensureGlobalChannel();
+  }
+
+  @override
+  void dispose() {
+    _channelSub?.cancel();
+    _messageSub?.cancel();
+    super.dispose();
   }
 }
