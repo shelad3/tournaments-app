@@ -18,8 +18,10 @@ class UserService {
 
   Future<String?> uploadProfileImage(String uid, XFile image) async {
     try {
+      final bytes = await image.readAsBytes();
+      if (bytes.length > 5 * 1024 * 1024) return 'TOO_LARGE';
       final ref = _storage.ref().child('profile_pics/$uid');
-      await ref.putData(await image.readAsBytes(), SettableMetadata(contentType: 'image/jpeg'));
+      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
       return await ref.getDownloadURL();
     } catch (e) {
       return null;

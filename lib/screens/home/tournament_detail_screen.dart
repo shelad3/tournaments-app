@@ -145,6 +145,38 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
       return;
     }
 
+    if (widget.tournament.isLocked) {
+      final codeCtrl = TextEditingController();
+      final entered = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Tournament Passcode'),
+          content: TextField(
+            controller: codeCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Enter 6-digit passcode',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, codeCtrl.text.trim()), child: const Text('Join')),
+          ],
+        ),
+      );
+      codeCtrl.dispose();
+      if (entered == null || entered.isEmpty || !mounted) return;
+      if (entered != widget.tournament.passcode) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Incorrect passcode'), backgroundColor: Colors.red),
+        );
+        return;
+      }
+    }
+
     if (widget.tournament.isMoney && !auth.user!.emailVerified) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);

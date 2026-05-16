@@ -108,10 +108,11 @@ class ForumService {
     }
   }
 
-  Future<void> createChannel(String name, String createdBy) async {
+  Future<void> createChannel(String name, String createdBy, {ChannelType type = ChannelType.public}) async {
     await _firestore.collection('forum_channels').add(ChannelModel(
       id: '',
       name: name,
+      type: type,
       createdBy: createdBy,
     ).toMap());
   }

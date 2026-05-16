@@ -8,6 +8,7 @@ import '../../models/forum_message_model.dart';
 import '../../models/channel_model.dart';
 import '../../utils/avatar_helper.dart';
 import '../profile/user_profile_screen.dart';
+import '../../services/forum_service.dart';
 
 class ForumScreen extends StatefulWidget {
   const ForumScreen({super.key});
@@ -89,34 +90,53 @@ class _ForumScreenState extends State<ForumScreen> {
 
   void _showCreateChannelDialog() {
     final nameController = TextEditingController();
+    ChannelType selectedType = ChannelType.public;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create Channel'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            hintText: 'Channel name',
-            border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (_, setDialogState) => AlertDialog(
+          title: const Text('Create Channel'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  hintText: 'Channel name',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<ChannelType>(
+                value: selectedType,
+                decoration: const InputDecoration(
+                  labelText: 'Channel Type',
+                  prefixIcon: Icon(Icons.visibility, size: 20),
+                ),
+                items: [
+                  const DropdownMenuItem(value: ChannelType.public, child: Text('Public — everyone can read & write')),
+                  const DropdownMenuItem(value: ChannelType.adminOnly, child: Text('Admin Only — only admins can write')),
+                ],
+                onChanged: (v) => setDialogState(() => selectedType = v!),
+              ),
+            ],
           ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              if (name.isNotEmpty) {
-                context.read<ForumProvider>().createChannel(
-                  name,
-                  context.read<AuthProvider>().user!.uid,
-                );
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                final service = ForumService();
+                await service.createChannel(name, context.read<AuthProvider>().user!.uid, type: selectedType);
+                if (!ctx.mounted) return;
                 Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -132,15 +152,34 @@ class _ForumScreenState extends State<ForumScreen> {
       appBar: AppBar(
         title: const Text('Forum'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Create channel',
-            onPressed: _showCreateChannelDialog,
-          ),
+          if (context.read<AuthProvider>().isAdmin)
+            IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: 'Create channel',
+              onPressed: _showCreateChannelDialog,
+            ),
         ],
       ),
       body: Consumer<ForumProvider>(
         builder: (_, provider, __) {
+          if (provider.error != null) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(provider.error!, style: const TextStyle(color: Colors.grey, fontSize: 14), textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => provider.loadChannels(),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
           if (provider.channels.isEmpty) {
             return const Center(
               child: Column(

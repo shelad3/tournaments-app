@@ -280,7 +280,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.read<AuthProvider>();
     final url = await _userService.uploadProfileImage(auth.user!.uid, image);
     if (!mounted) return;
-    if (url != null) {
+    if (url == 'TOO_LARGE') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image too large. Max 5MB.'), backgroundColor: Colors.red),
+      );
+    } else if (url != null) {
       await _userService.updateUser(auth.user!.uid, {'photoUrl': url});
       await auth.refreshUser();
       if (!mounted) return;
@@ -289,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to upload image. Check your connection.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Upload failed. Try a smaller image or check your connection.'), backgroundColor: Colors.red),
       );
     }
   }
