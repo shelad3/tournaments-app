@@ -193,7 +193,7 @@ function withdrawalFee(amount) {
 }
 
 // ===================================================================
-// 4. Withdrawal (B2C) with Betika-style fee
+// 4. Withdrawal (B2C)
 // ===================================================================
 exports.withdraw = onCall(async (request) => {
     assertAuth(request);

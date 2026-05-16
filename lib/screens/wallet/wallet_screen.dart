@@ -423,7 +423,7 @@ class _WalletTab extends StatelessWidget {
                     _FeeRow(label: 'Min Deposit', detail: '${WalletService.minDepositPerTransaction} KES per transaction'),
                     _FeeRow(label: 'Min Withdrawal', detail: '${WalletService.minWithdrawal} KES'),
                     const SizedBox(height: 8),
-                    const Text('Withdrawal Fees (Betika-style):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                    const Text('Withdrawal Fees:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
                     const SizedBox(height: 4),
                     _FeeRow(label: '50 – 1,000 KES', detail: '15 KES fee'),
                     _FeeRow(label: '1,001 – 5,000 KES', detail: '30 KES fee'),
