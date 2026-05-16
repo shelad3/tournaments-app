@@ -10,12 +10,14 @@ class UpdateInfo {
   final int latestBuildNumber;
   final String apkUrl;
   final String changelog;
+  final String adminChangelog;
 
   UpdateInfo({
     required this.latestVersion,
     required this.latestBuildNumber,
     required this.apkUrl,
     required this.changelog,
+    this.adminChangelog = '',
   });
 
   factory UpdateInfo.fromJson(Map<String, dynamic> json) => UpdateInfo(
@@ -23,6 +25,7 @@ class UpdateInfo {
         latestBuildNumber: json['latestBuildNumber'] as int,
         apkUrl: json['apkUrl'] as String,
         changelog: json['changelog'] as String? ?? '',
+        adminChangelog: json['adminChangelog'] as String? ?? '',
       );
 }
 

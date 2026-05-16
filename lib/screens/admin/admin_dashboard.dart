@@ -8,6 +8,7 @@ import 'admin_messages.dart';
 import 'admin_manage_admins.dart';
 import 'admin_winners.dart';
 import 'admin_super_wallet.dart';
+import 'admin_updates_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -144,6 +145,16 @@ class AdminDashboard extends StatelessWidget {
                             context.read<WalletProvider>().loadSuperWallet();
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSuperWallet()));
                           },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: _ActionCard(
+                          icon: Icons.system_update,
+                          label: 'Admin Updates',
+                          desc: 'Security-sensitive release notes and changes',
+                          color: Colors.red,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUpdatesScreen())),
                         ),
                       ),
                     ],
