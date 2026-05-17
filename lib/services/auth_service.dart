@@ -142,6 +142,58 @@ class AuthService {
     return _auth.currentUser?.emailVerified ?? false;
   }
 
+  Future<void> verifyPhoneNumber({
+    required String phoneNumber,
+    required void Function(String verificationId, int? resendToken) codeSent,
+    required void Function(FirebaseAuthException error) verificationFailed,
+    required void Function(String verificationId) codeAutoRetrievalTimeout,
+  }) async {
+    await _auth.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      codeSent: (verificationId, forceResendingToken) {
+        codeSent(verificationId, forceResendingToken);
+      },
+      verificationFailed: verificationFailed,
+      verificationCompleted: (credential) async {
+        try {
+          final userCredential = await _auth.signInWithCredential(credential);
+          if (userCredential.user != null) {
+            codeSent(userCredential.user!.uid, null);
+          }
+        } catch (_) {}
+      },
+      codeAutoRetrievalTimeout: (verificationId) {
+        codeAutoRetrievalTimeout(verificationId);
+      },
+      timeout: const Duration(seconds: 60),
+    );
+  }
+
+  Future<UserModel?> signInWithPhoneCredential(PhoneAuthCredential credential) async {
+    final userCredential = await _auth.signInWithCredential(credential);
+    final uid = userCredential.user!.uid;
+    final phone = userCredential.user!.phoneNumber ?? '';
+    final name = userCredential.user!.displayName ?? 'User';
+    final doc = await _firestore.collection('users').doc(uid).get();
+    if (doc.exists) {
+      return UserModel.fromMap(doc.data()!, doc.id);
+    }
+    final refService = ReferralService();
+    final referralCode = refService.generateReferralCode(name.replaceAll(' ', '_'), uid);
+    final user = UserModel(
+      uid: uid,
+      fullName: name,
+      email: userCredential.user!.email ?? '',
+      username: name.replaceAll(' ', '_').toLowerCase(),
+      phoneNumber: phone,
+      role: _roleForEmail(userCredential.user!.email ?? ''),
+      permissions: _permissionsForRole(_roleForEmail(userCredential.user!.email ?? '')),
+      referralCode: referralCode,
+    );
+    await _firestore.collection('users').doc(uid).set(user.toMap());
+    return user;
+  }
+
   Future<bool> changePassword({
     required String currentPassword,
     required String newPassword,

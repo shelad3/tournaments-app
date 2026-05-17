@@ -69,10 +69,14 @@ class MatchResultService {
           }
 
           final referralService = ReferralService();
-          await Future.wait([
-            referralService.checkAndAwardReferralBonus(match.participant1Id),
-            referralService.checkAndAwardReferralBonus(match.participant2Id),
-          ]);
+          final futures = <Future<void>>[];
+          if (match.participant1Id != null) {
+            futures.add(referralService.checkAndAwardReferralBonus(match.participant1Id!));
+          }
+          if (match.participant2Id != null) {
+            futures.add(referralService.checkAndAwardReferralBonus(match.participant2Id!));
+          }
+          await Future.wait(futures);
         }
       } else {
         await ref.update({

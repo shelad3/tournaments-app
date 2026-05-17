@@ -420,7 +420,7 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildInfoTab(context.read<AuthProvider>(), tournament, dateFormat, timeFormat, canSignUp, isRegistered, startTime, timeLeft, isPast),
+          _buildInfoTab(context.read<AuthProvider>(), tournament, dateFormat, timeFormat, canSignUp, isRegistered, startTime, timeLeft, isPast, isEnded),
           _buildPlayersTab(isActive, canCheckIn),
         ],
       ),
@@ -437,6 +437,7 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
     DateTime startTime,
     Duration timeLeft,
     bool isPast,
+    bool isEnded,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

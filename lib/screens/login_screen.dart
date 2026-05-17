@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../providers/auth_provider.dart' as local;
+import '../services/auth_service.dart';
 import 'signup_screen.dart';
 import 'main_shell.dart';
 
@@ -46,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthProvider>();
+    final auth = context.read<local.AuthProvider>();
     final success = await auth.signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
@@ -66,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Future<void> _signInWithGoogle() async {
-    final auth = context.read<AuthProvider>();
+    final auth = context.read<local.AuthProvider>();
     final success = await auth.signInWithGoogle();
     if (!mounted) return;
     if (success) {
@@ -113,23 +115,155 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          Consumer<AuthProvider>(
-            builder: (_, auth, __) => ElevatedButton(
-              onPressed: auth.isLoading ? null : () async {
-                final email = emailCtrl.text.trim();
-                if (email.isEmpty) return;
-                final sent = await auth.resetPassword(email);
-                if (!ctx.mounted) return;
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(sent ? 'Reset link sent! Check your email.' : 'Failed to send reset link. Try again.'),
-                    backgroundColor: sent ? Colors.green : Colors.red,
-                  ),
-                );
-              },
-              child: const Text('Send Reset Link'),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty) return;
+              final auth = context.read<local.AuthProvider>();
+              final sent = await auth.resetPassword(email);
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(sent ? 'Reset link sent! Check your email.' : 'Failed to send reset link. Try again.'),
+                  backgroundColor: sent ? Colors.green : Colors.red,
+                ),
+              );
+            },
+            child: const Text('Send Reset Link'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPhoneSignInDialog() {
+    final phoneCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.phone_android, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Phone Sign In'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter your phone number with country code.', style: TextStyle(fontSize: 14)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: phoneCtrl,
+              decoration: InputDecoration(
+                labelText: 'Phone Number',
+                hintText: '+254712345678',
+                prefixIcon: const Icon(Icons.phone),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              keyboardType: TextInputType.phone,
             ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              final phone = phoneCtrl.text.trim();
+              if (phone.isEmpty) return;
+              Navigator.pop(ctx);
+              final service = AuthService();
+              await service.verifyPhoneNumber(
+                phoneNumber: phone,
+                codeSent: (verificationId, _) {
+                  if (!mounted) return;
+                  _showSmsCodeDialog(verificationId, phone);
+                },
+                verificationFailed: (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.message ?? 'Verification failed'), backgroundColor: Colors.red),
+                  );
+                },
+                codeAutoRetrievalTimeout: (_) {},
+              );
+            },
+            child: const Text('Send Code'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSmsCodeDialog(String verificationId, String phoneNumber) {
+    final smsCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.message, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Enter Code'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Enter the 6-digit code sent to $phoneNumber', style: const TextStyle(fontSize: 14)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: smsCtrl,
+              decoration: InputDecoration(
+                labelText: 'SMS Code',
+                prefixIcon: const Icon(Icons.lock),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = smsCtrl.text.trim();
+              if (code.length != 6) return;
+              try {
+                final credential = PhoneAuthProvider.credential(
+                  verificationId: verificationId,
+                  smsCode: code,
+                );
+                final auth = context.read<local.AuthProvider>();
+                final service = AuthService();
+                final user = await service.signInWithPhoneCredential(credential);
+                if (user != null) {
+                  await auth.refreshUser();
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MainShell()),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Invalid code'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Verify'),
           ),
         ],
       ),
@@ -237,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Consumer<AuthProvider>(
+                                Consumer<local.AuthProvider>(
                                   builder: (_, auth, __) => SizedBox(
                                     width: double.infinity,
                                     child: ElevatedButton(
@@ -264,7 +398,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                Consumer<AuthProvider>(
+                                Consumer<local.AuthProvider>(
                                   builder: (_, auth, __) => SizedBox(
                                     width: double.infinity,
                                     child: OutlinedButton.icon(
@@ -282,6 +416,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         )),
                                       ),
                                       label: const Text('Continue with Google', style: TextStyle(fontSize: 15)),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        side: BorderSide(color: Colors.grey.shade300),
+                                        foregroundColor: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Consumer<local.AuthProvider>(
+                                  builder: (_, auth, __) => SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: auth.isLoading ? null : _showPhoneSignInDialog,
+                                      icon: const Icon(Icons.phone, size: 20),
+                                      label: const Text('Sign in with Phone', style: TextStyle(fontSize: 15)),
                                       style: OutlinedButton.styleFrom(
                                         padding: const EdgeInsets.symmetric(vertical: 14),
                                         side: BorderSide(color: Colors.grey.shade300),
