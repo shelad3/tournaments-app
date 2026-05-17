@@ -141,7 +141,14 @@ class AdminTournaments extends StatelessWidget {
       ),
     );
     if (confirmed == true) {
-      await FirebaseFirestore.instance.collection('tournaments').doc(id).delete();
+      try {
+        await FirebaseFirestore.instance.collection('tournaments').doc(id).delete();
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete failed: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -492,7 +499,7 @@ class AdminTournaments extends StatelessWidget {
                         'minParticipants': minP,
                         'maxParticipants': maxP,
                         'minTier': minTier,
-                        'prizeDistribution': prizeMap,
+                        'prizeDistribution': prizeMap.map((k, v) => MapEntry(k.toString(), v)),
                         'format': format.name,
                         'groupCount': format == TournamentFormat.groupStagePlayoffs ? groupCount : 0,
                         'advancePerGroup': format == TournamentFormat.groupStagePlayoffs ? advancePerGroup : 0,
@@ -502,10 +509,18 @@ class AdminTournaments extends StatelessWidget {
                         'createdBy': isSubAdmin ? user.uid : 'admin',
                         'createdAt': FieldValue.serverTimestamp(),
                       };
-                      if (isEdit) {
-                        await FirebaseFirestore.instance.collection('tournaments').doc(tournament.id).update(data);
-                      } else {
-                        await FirebaseFirestore.instance.collection('tournaments').add(data);
+                      try {
+                        if (isEdit) {
+                          await FirebaseFirestore.instance.collection('tournaments').doc(tournament.id).update(data);
+                        } else {
+                          await FirebaseFirestore.instance.collection('tournaments').add(data);
+                        }
+                      } catch (e) {
+                        if (!ctx.mounted) return;
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+                        );
+                        return;
                       }
                       if (!ctx.mounted) return;
                       Navigator.pop(ctx);
@@ -540,14 +555,22 @@ class AdminTournaments extends StatelessWidget {
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('tournament_templates').orderBy('createdAt', descending: true).snapshots(),
             builder: (_, snap) {
+              if (snap.hasError) return Center(child: Text('Error: ${snap.error}', style: const TextStyle(color: Colors.red)));
               if (!snap.hasData) return const Center(child: CircularProgressIndicator());
               final templates = snap.data!.docs;
               if (templates.isEmpty) return const Center(child: Text('No templates saved yet'));
+              final items = <TournamentTemplate>[];
+              for (final doc in templates) {
+                try {
+                  items.add(TournamentTemplate.fromMap(doc.data() as Map<String, dynamic>, doc.id));
+                } catch (_) {}
+              }
+              if (items.isEmpty) return const Center(child: Text('No templates saved yet'));
               return ListView.builder(
                 shrinkWrap: true,
-                itemCount: templates.length,
+                itemCount: items.length,
                 itemBuilder: (_, i) {
-                  final t = TournamentTemplate.fromMap(templates[i].data() as Map<String, dynamic>, templates[i].id);
+                  final t = items[i];
                   return ListTile(
                     title: Text(t.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text('${t.entryTypeLabel} • ${t.formatLabel}'),

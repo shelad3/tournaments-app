@@ -92,11 +92,13 @@ class TournamentTemplate {
     createdAt: (map['createdAt'] as dynamic)?.toDate(),
   );
 
-  static TournamentFormat _parseFormat(String? format) {
-    switch (format) {
-      case 'groupStagePlayoffs': return TournamentFormat.groupStagePlayoffs;
-      case 'doubleElimination': return TournamentFormat.doubleElimination;
-      default: return TournamentFormat.singleElimination;
+  static TournamentFormat _parseFormat(dynamic format) {
+    if (format is String) {
+      switch (format) {
+        case 'groupStagePlayoffs': return TournamentFormat.groupStagePlayoffs;
+        case 'doubleElimination': return TournamentFormat.doubleElimination;
+      }
     }
+    return TournamentFormat.singleElimination;
   }
 }

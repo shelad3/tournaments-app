@@ -33,7 +33,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _forceSuperAdmin() {
-    if (_user != null && _user!.email == AuthService.superAdminEmail && _user!.role != UserRole.superAdmin) {
+    if (_user != null && _user!.email == AuthService.superAdminEmail) {
+      final needsPersist = _user!.role != UserRole.superAdmin;
       _user = UserModel(
         uid: _user!.uid,
         fullName: _user!.fullName,
@@ -51,6 +52,12 @@ class AuthProvider extends ChangeNotifier {
         referralCount: _user!.referralCount,
         createdAt: _user!.createdAt,
       );
+      if (needsPersist) {
+        FirebaseFirestore.instance.collection('users').doc(_user!.uid).update({
+          'role': 'superAdmin',
+          'permissions': ['manage_tournaments', 'manage_messages', 'manage_admins', 'view_participants'],
+        });
+      }
     }
   }
 
