@@ -20,6 +20,7 @@ import '../../services/waiting_list_service.dart';
 import '../../services/user_stats_service.dart';
 import '../../models/user_tier.dart';
 import '../../utils/avatar_helper.dart';
+import '../../widgets/result_card.dart';
 import '../profile/user_profile_screen.dart';
 import 'tournament_chat_screen.dart';
 import 'bracket_screen.dart';
@@ -273,6 +274,22 @@ ${tournament.description}
 ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Entry'}
 ''';
     Share.share(text.trim(), subject: tournament.title);
+  }
+
+  void _showResultCard(BuildContext context) {
+    final tournament = widget.tournament;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.transparent,
+        contentPadding: EdgeInsets.zero,
+        content: ResultCard(
+          tournament: tournament,
+          winnerName: 'Winner Name',
+          prize: tournament.isMoney ? '${tournament.entryFee * (_counts['registered'] ?? 0)} KES Prize' : '',
+        ),
+      ),
+    );
   }
 
   Future<void> _reportResult(MatchModel match, String result) async {
@@ -779,6 +796,22 @@ ${tournament.isMoney ? '💰 Entry: ${tournament.entryFee} KES' : '🎫 Free Ent
                   SizedBox(width: 8),
                   Text('Sign-up period has ended', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 15)),
                 ],
+              ),
+            ),
+          ],
+          if (isEnded) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _showResultCard(context),
+                icon: const Icon(Icons.emoji_events),
+                label: const Text('View & Share Results'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                ),
               ),
             ),
           ],
