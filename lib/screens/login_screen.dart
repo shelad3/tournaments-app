@@ -65,6 +65,77 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    final auth = context.read<AuthProvider>();
+    final success = await auth.signInWithGoogle();
+    if (!mounted) return;
+    if (success) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } else if (auth.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(auth.error!), backgroundColor: Colors.red),
+      );
+      auth.clearError();
+    }
+  }
+
+  void _showForgotPasswordDialog() {
+    final emailCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_reset, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Reset Password'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter your email and we\'ll send you a reset link.', style: TextStyle(fontSize: 14)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailCtrl,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                prefixIcon: const Icon(Icons.email_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          Consumer<AuthProvider>(
+            builder: (_, auth, __) => ElevatedButton(
+              onPressed: auth.isLoading ? null : () async {
+                final email = emailCtrl.text.trim();
+                if (email.isEmpty) return;
+                final sent = await auth.resetPassword(email);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(sent ? 'Reset link sent! Check your email.' : 'Failed to send reset link. Try again.'),
+                    backgroundColor: sent ? Colors.green : Colors.red,
+                  ),
+                );
+              },
+              child: const Text('Send Reset Link'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -157,7 +228,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     return null;
                                   },
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 4),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: _showForgotPasswordDialog,
+                                    child: const Text('Forgot Password?', style: TextStyle(fontSize: 13)),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
                                 Consumer<AuthProvider>(
                                   builder: (_, auth, __) => SizedBox(
                                     width: double.infinity,
@@ -170,6 +249,44 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       child: auth.isLoading
                                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                           : const Text('Sign In', style: TextStyle(fontSize: 16)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      child: Text('OR', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                                    ),
+                                    Expanded(child: Divider(color: Colors.grey.shade300)),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Consumer<AuthProvider>(
+                                  builder: (_, auth, __) => SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: auth.isLoading ? null : _signInWithGoogle,
+                                      icon: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Text('G', style: TextStyle(
+                                          fontWeight: FontWeight.bold, fontSize: 18,
+                                          color: Color(0xFF4285F4),
+                                          fontFamily: 'sans-serif',
+                                        )),
+                                      ),
+                                      label: const Text('Continue with Google', style: TextStyle(fontSize: 15)),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        side: BorderSide(color: Colors.grey.shade300),
+                                        foregroundColor: Colors.black87,
+                                      ),
                                     ),
                                   ),
                                 ),

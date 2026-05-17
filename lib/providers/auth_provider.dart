@@ -46,6 +46,9 @@ class AuthProvider extends ChangeNotifier {
         role: UserRole.superAdmin,
         permissions: const ['manage_tournaments', 'manage_messages', 'manage_admins', 'view_participants'],
         emailVerified: _user!.emailVerified,
+        referralCode: _user!.referralCode,
+        referralEarnings: _user!.referralEarnings,
+        referralCount: _user!.referralCount,
         createdAt: _user!.createdAt,
       );
     }
@@ -127,6 +130,43 @@ class AuthProvider extends ChangeNotifier {
     try {
       _user = await _authService.signIn(email: email, password: password);
       _forceSuperAdmin();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> signInWithGoogle() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _user = await _authService.signInWithGoogle();
+      if (_user != null) {
+        _forceSuperAdmin();
+      }
+      _isLoading = false;
+      notifyListeners();
+      return _user != null;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> resetPassword(String email) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _authService.resetPassword(email);
       _isLoading = false;
       notifyListeners();
       return true;

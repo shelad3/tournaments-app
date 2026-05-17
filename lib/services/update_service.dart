@@ -30,17 +30,15 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const String versionCheckUrl =
+  static const String versionCheckBase =
       'https://raw.githubusercontent.com/shelad3/tournaments-app/main/version.json';
 
   Future<PackageInfo> _getPackageInfo() => PackageInfo.fromPlatform();
 
   Future<UpdateInfo?> checkForUpdate() async {
     try {
-      final response = await http.get(
-        Uri.parse(versionCheckUrl),
-        headers: {'Cache-Control': 'no-cache'},
-      );
+      final url = Uri.parse('$versionCheckBase?t=${DateTime.now().millisecondsSinceEpoch}');
+      final response = await http.get(url, headers: {'Cache-Control': 'no-cache'});
       if (response.statusCode != 200) return null;
 
       final remote = UpdateInfo.fromJson(

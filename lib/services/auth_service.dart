@@ -1,11 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import 'referral_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   Stream<User?> get authState => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
@@ -83,7 +85,47 @@ class AuthService {
     return UserModel.fromMap(doc.data()!, doc.id);
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<UserModel?> signInWithGoogle() async {
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return null;
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final userCredential = await _auth.signInWithCredential(credential);
+    final uid = userCredential.user!.uid;
+    final email = userCredential.user!.email ?? '';
+    final name = userCredential.user!.displayName ?? email.split('@').first;
+    final photoUrl = userCredential.user!.photoURL;
+
+    final doc = await _firestore.collection('users').doc(uid).get();
+    if (doc.exists) {
+      return UserModel.fromMap(doc.data()!, doc.id);
+    }
+
+    final role = _roleForEmail(email);
+    final refService = ReferralService();
+    final referralCode = refService.generateReferralCode(name.replaceAll(' ', '_'), uid);
+    final user = UserModel(
+      uid: uid,
+      fullName: name,
+      email: email,
+      username: name.replaceAll(' ', '_').toLowerCase(),
+      phoneNumber: '',
+      photoUrl: photoUrl,
+      role: role,
+      permissions: _permissionsForRole(role),
+      referralCode: referralCode,
+    );
+    await _firestore.collection('users').doc(uid).set(user.toMap());
+    return user;
+  }
+
+  Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    await _auth.signOut();
+  }
 
   Future<void> resetPassword(String email) =>
       _auth.sendPasswordResetEmail(email: email);

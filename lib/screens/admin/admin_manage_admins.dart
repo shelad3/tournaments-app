@@ -20,12 +20,14 @@ class _AdminManageAdminsState extends State<AdminManageAdmins> {
   static const List<String> allPermissions = [
     'manage_tournaments',
     'manage_messages',
+    'manage_admins',
     'view_participants',
   ];
 
   static const Map<String, String> permissionLabels = {
     'manage_tournaments': 'Manage Tournaments',
     'manage_messages': 'Manage Announcements',
+    'manage_admins': 'Manage Admins',
     'view_participants': 'View Participants',
   };
 
