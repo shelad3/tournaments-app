@@ -1,7 +1,7 @@
 {
-  "latestVersion": "1.6.1",
-  "latestBuildNumber": 11,
-  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.6.1/app-release.apk",
-  "changelog": "Admin Updates page added\nForum channels fixed: no more disappearing channels\nReal-time admin role sync: changes apply instantly\nManage Admins visible to all full admins\nAdmin dashboard refresh button\nLoading indicator in forum (no flash empty state)\nEmail deliverability: use custom domain with SPF/DKIM",
+  "latestVersion": "1.7.0",
+  "latestBuildNumber": 13,
+  "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.7.0/app-release.apk",
+  "changelog": "Referral Program: share code & earn bonuses\nReferral code entry on signup\nRefer & Earn section in profile\nDiscord community button\nUpdated roadmap with prioritized features",
   "adminChangelog": "Hardcoded super admin override: sheldonramu8@gmail.com forced to Super Admin role on every auth refresh\nReal-time user document listener: admin promotions reflect instantly without re-login\nManage Admins permission relaxed to all full admins with manage_admins permission\nAdmin dashboard added refresh button for manual permission sync\nForum provider: stream subscription leak fixed (cancel on reload, dispose cleanup)\nForum provider: error state cleared on successful stream data\nFirestore user document listener replaces one-time read for real-time role sync"
 }

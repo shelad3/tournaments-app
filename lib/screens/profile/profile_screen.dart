@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
 import '../../services/user_stats_service.dart';
 import '../../services/tier_service.dart';
 import '../../services/account_service.dart';
+import '../../services/referral_service.dart';
 import '../../models/user_tier.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/section_header.dart';
@@ -553,6 +556,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      _buildReferralSection(user),
+                      const SizedBox(height: 16),
                       _buildTierSection(user),
                     ],
                   ),
@@ -667,6 +672,119 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildReferralSection(UserModel user) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.card_giftcard, color: Colors.green, size: 20),
+              const SizedBox(width: 8),
+              Text('Refer & Earn', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text('Share your code and earn bonuses when friends join!',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          user.referralCode.isNotEmpty ? user.referralCode : '---',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.5),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: user.referralCode));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Code copied!'), duration: Duration(seconds: 2)),
+                          );
+                        },
+                        child: Icon(Icons.copy, size: 18, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () {
+                  SharePlus.instance.share(
+                    ShareParams(
+                      text: 'Join me on NativeCodeX Tournaments! Use my referral code: ${user.referralCode}\n\nDownload: https://github.com/shelad3/tournaments-app/releases',
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.share, size: 16),
+                label: const Text('Share'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _ReferralStat(icon: Icons.people, label: 'Referred', value: '${user.referralCount}', color: Colors.blue),
+              const SizedBox(width: 12),
+              _ReferralStat(icon: Icons.monetization_on, label: 'Earned', value: '${user.referralEarnings} KES', color: Colors.green),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReferralStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  const _ReferralStat({required this.icon, required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 6),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
+                Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

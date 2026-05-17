@@ -15,6 +15,9 @@ class UserModel {
   final int? maxDailyTournaments;
   final bool approvalRequired;
   final bool emailVerified;
+  final String referralCode;
+  final int referralEarnings;
+  final int referralCount;
   final DateTime createdAt;
 
   UserModel({
@@ -32,6 +35,9 @@ class UserModel {
     this.maxDailyTournaments,
     this.approvalRequired = false,
     this.emailVerified = false,
+    this.referralCode = '',
+    this.referralEarnings = 0,
+    this.referralCount = 0,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -67,6 +73,9 @@ class UserModel {
     'maxDailyTournaments': maxDailyTournaments,
     'approvalRequired': approvalRequired,
     'emailVerified': emailVerified,
+    'referralCode': referralCode,
+    'referralEarnings': referralEarnings,
+    'referralCount': referralCount,
     'createdAt': createdAt,
   };
 
@@ -85,6 +94,9 @@ class UserModel {
     maxDailyTournaments: map['maxDailyTournaments'],
     approvalRequired: map['approvalRequired'] ?? false,
     emailVerified: map['emailVerified'] ?? false,
+    referralCode: map['referralCode'] ?? '',
+    referralEarnings: map['referralEarnings'] ?? 0,
+    referralCount: map['referralCount'] ?? 0,
     createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
   );
 

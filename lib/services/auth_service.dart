@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import 'referral_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -30,6 +31,7 @@ class AuthService {
     required String username,
     required String phoneNumber,
     required String password,
+    String? referredBy,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -37,6 +39,8 @@ class AuthService {
     );
     final uid = credential.user!.uid;
     final role = _roleForEmail(email);
+    final refService = ReferralService();
+    final referralCode = refService.generateReferralCode(username, uid);
     final user = UserModel(
       uid: uid,
       fullName: fullName,
@@ -45,8 +49,23 @@ class AuthService {
       phoneNumber: phoneNumber,
       role: role,
       permissions: _permissionsForRole(role),
+      referralCode: referralCode,
     );
     await _firestore.collection('users').doc(uid).set(user.toMap());
+
+    if (referredBy != null && referredBy.isNotEmpty) {
+      final referrerId = await refService.getReferrerIdByCode(referredBy);
+      if (referrerId != null && referrerId != uid) {
+        await refService.createReferral(
+          referrerId: referrerId,
+          referrerCode: referredBy.toUpperCase(),
+          refereeId: uid,
+          refereeName: fullName,
+          refereeEmail: email,
+        );
+      }
+    }
+
     return user;
   }
 

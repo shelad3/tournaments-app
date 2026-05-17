@@ -92,6 +92,7 @@ class AuthProvider extends ChangeNotifier {
     required String username,
     required String phoneNumber,
     required String password,
+    String? referredBy,
   }) async {
     _isLoading = true;
     _error = null;
@@ -103,6 +104,7 @@ class AuthProvider extends ChangeNotifier {
         username: username,
         phoneNumber: phoneNumber,
         password: password,
+        referredBy: referredBy,
       );
       _isLoading = false;
       notifyListeners();

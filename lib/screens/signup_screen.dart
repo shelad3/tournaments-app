@@ -18,6 +18,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralController = TextEditingController();
   bool _obscurePassword = true;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -47,6 +48,7 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _referralController.dispose();
     _animController.dispose();
     super.dispose();
   }
@@ -54,13 +56,15 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
-    final success = await auth.signUp(
-      fullName: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      username: _usernameController.text.trim(),
-      phoneNumber: _phoneController.text.trim(),
-      password: _passwordController.text,
-    );
+      final refCode = _referralController.text.trim();
+      final success = await auth.signUp(
+        fullName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        username: _usernameController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        password: _passwordController.text,
+        referredBy: refCode.isEmpty ? null : refCode,
+      );
     if (!mounted) return;
     if (success) {
       await auth.sendVerificationEmail();
@@ -222,6 +226,15 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
                                   if (v != _passwordController.text) return 'Passwords do not match';
                                   return null;
                                 },
+                              ),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _referralController,
+                                decoration: InputDecoration(
+                                  labelText: 'Referral Code (optional)',
+                                  prefixIcon: const Icon(Icons.card_giftcard),
+                                  hintText: 'Enter a friend\'s code',
+                                ),
                               ),
                               const SizedBox(height: 20),
                               Consumer<AuthProvider>(
