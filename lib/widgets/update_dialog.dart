@@ -92,7 +92,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _downloading ? null : () => Navigator.of(context).pop(),
+          onPressed: _downloading ? null : () {
+            _service.markBuildDismissed(widget.updateInfo.latestBuildNumber);
+            Navigator.of(context).pop();
+          },
           child: const Text('Later'),
         ),
         if (!_downloading)

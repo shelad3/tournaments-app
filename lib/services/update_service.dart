@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateInfo {
   final String latestVersion;
@@ -47,7 +48,7 @@ class UpdateService {
       final local = await _getPackageInfo();
       final localBuild = int.tryParse(local.buildNumber) ?? 0;
 
-      if (remote.latestBuildNumber > localBuild) return remote;
+      if (remote.latestBuildNumber > localBuild && !await wasBuildDismissed(remote.latestBuildNumber)) return remote;
       return null;
     } catch (_) {
       return null;
@@ -95,5 +96,15 @@ class UpdateService {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<bool> wasBuildDismissed(int buildNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('dismissed_build') == buildNumber;
+  }
+
+  Future<void> markBuildDismissed(int buildNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('dismissed_build', buildNumber);
   }
 }
