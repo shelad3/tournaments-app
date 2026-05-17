@@ -177,6 +177,17 @@ class SettingsScreen extends StatelessWidget {
               Uri.parse('mailto:sheldonramu8@gmail.com?subject=Tournaments%20Support'),
             ),
           ),
+          const SizedBox(height: 8),
+          _SettingsButton(
+            icon: Icons.discord,
+            label: 'Join Discord',
+            iconColor: Colors.indigo,
+            labelColor: Colors.indigo,
+            onTap: () => launchUrl(
+              Uri.parse('https://discord.gg/TFfmgyhNRY'),
+              mode: LaunchMode.externalApplication,
+            ),
+          ),
           const SizedBox(height: 24),
           _SettingsButton(
             icon: Icons.delete_forever_outlined,

@@ -5,15 +5,37 @@ class UpcomingFeaturesScreen extends StatelessWidget {
 
   static const _planned = [
     _FeatureGroup(
-      icon: Icons.emoji_events,
+      icon: Icons.people,
+      color: Colors.green,
+      title: 'Referral Program',
+      items: [
+        'Refer friends & earn bonus when they join and play',
+        'Both referrer and referee get rewarded',
+        'Track your referrals and earnings in profile',
+        'Withdraw referral earnings to M-Pesa',
+      ],
+    ),
+    _FeatureGroup(
+      icon: Icons.share,
+      color: Colors.blue,
+      title: 'Share & Viral Growth',
+      items: [
+        'Share tournament as an image to WhatsApp/Instagram',
+        'Shareable winner result cards with ranking & prize',
+        'Deep links that open the app directly',
+        'Public tournament gallery (no login required)',
+      ],
+    ),
+    _FeatureGroup(
+      icon: Icons.sports_esports,
       color: Colors.amber,
       title: 'Tournament Enhancements',
       items: [
-        'Team/crew tournaments with roster management',
-        'Live match streaming and spectator mode',
-        'Best-of series support (Bo3, Bo5)',
-        'Tournament replay and VOD sharing',
-        'Custom rule sets per tournament',
+        'Free-to-play tournaments with small prizes',
+        'Team/clan tournaments (2v2, 3v3, 5v5)',
+        'Onboarding first-play bonus rewards',
+        'Live leaderboard: top players this week/month',
+        'Match reminders via SMS + push notification',
       ],
     ),
     _FeatureGroup(
@@ -21,11 +43,10 @@ class UpcomingFeaturesScreen extends StatelessWidget {
       color: Colors.green,
       title: 'Payments & Rewards',
       items: [
-        'Referral rewards: earn bonus when friends join',
+        'In-app M-Pesa STK push (no manual M-Pesa)',
+        'Subscription tiers with perks and discounts',
         'Weekly/monthly leaderboard with cash prizes',
-        'Subscription tiers with perks',
         'Promo codes and discount system',
-        'Instant withdrawals to mobile money',
       ],
     ),
     _FeatureGroup(
@@ -33,10 +54,10 @@ class UpcomingFeaturesScreen extends StatelessWidget {
       color: Colors.blue,
       title: 'Social & Community',
       items: [
-        'In-app voice chat during tournaments',
+        'Join our Discord community for exclusive tournaments',
+        'In-app voice chat during matches',
         'Clans/teams with shared rankings',
         'Live streaming integration (Twitch/YouTube)',
-        'Tournament highlights and replay sharing',
         'Advanced user search and friend recommendations',
       ],
     ),
@@ -82,27 +103,34 @@ class UpcomingFeaturesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Upcoming Features')),
+      appBar: AppBar(title: const Text('Roadmap')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade600, Colors.purple.shade600],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.shade200),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'These features are in development. Vote and suggest ideas by contacting support.',
-                    style: TextStyle(color: Colors.blue.shade800, fontSize: 13, height: 1.4),
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.rocket_launch, color: Colors.white.withValues(alpha: 0.9), size: 20),
+                    const SizedBox(width: 8),
+                    Text('What\'s coming next',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13)),
+                  ],
                 ),
+                const SizedBox(height: 8),
+                const Text('Vote on features by contacting support',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
           ),
