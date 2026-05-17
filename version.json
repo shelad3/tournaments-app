@@ -1,6 +1,6 @@
 {
   "latestVersion": "1.8.1",
-  "latestBuildNumber": 15,
+  "latestBuildNumber": 16,
   "apkUrl": "https://github.com/shelad3/tournaments-app/releases/download/v1.8.1/app-release.apk",
   "changelog": "Sign in with Google (full data persistence)\nForgot Password with custom UI\nFirestore rules: admin functions fixed (moved inside service block)\nStorage rules: secure profile pic uploads\nAdmin management: manage_admins permission now assignable\nUpdate checker: cache-busting to stop stale update prompts\nReferral Program\nDiscord community button",
   "adminChangelog": "Hardcoded super admin override: sheldonramu8@gmail.com forced to Super Admin role on every auth refresh\n_forceSuperAdmin() now persists superAdmin role to Firestore (rules were blocking admin operations)\nError handling added to tournament create/update/delete — shows real Firebase error message\nReal-time user document listener: admin promotions reflect instantly without re-login\nManage Admins permission relaxed to all full admins with manage_admins permission\nAdmin dashboard added refresh button for manual permission sync\nForum provider: stream subscription leak fixed (cancel on reload, dispose cleanup)\nForum provider: error state cleared on successful stream data\nFirestore user document listener replaces one-time read for real-time role sync"
