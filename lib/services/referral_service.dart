@@ -46,7 +46,8 @@ class ReferralService {
     final referralDoc = await referralRef.get();
     if (!referralDoc.exists) return;
     final data = referralDoc.data()!;
-    final referrerId = data['referrerId'] as String;
+    final referrerId = data['referrerId'] as String?;
+    if (referrerId == null) return;
     final walletRef = _firestore.collection('wallets').doc(referrerId);
     batch.update(walletRef, {'balance': FieldValue.increment(amount)});
     await batch.commit();
@@ -78,5 +79,16 @@ class ReferralService {
     final doc = await _firestore.collection('users').doc(userId).get();
     if (!doc.exists) return 0;
     return doc.data()?['referralEarnings'] as int? ?? 0;
+  }
+
+  Future<void> checkAndAwardReferralBonus(String refereeId, {int amount = 50}) async {
+    final snap = await _firestore
+        .collection('referrals')
+        .where('refereeId', isEqualTo: refereeId)
+        .where('bonusAwarded', isEqualTo: false)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return;
+    await awardReferralBonus(snap.docs.first.id, amount);
   }
 }

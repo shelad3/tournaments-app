@@ -31,6 +31,14 @@
         { "fieldPath": "type", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "refereeId", "order": "ASCENDING" },
+        { "fieldPath": "bonusAwarded", "order": "ASCENDING" }
+      ]
     }
   ]
 }

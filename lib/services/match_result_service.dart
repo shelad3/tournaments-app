@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/match_model.dart';
 import '../models/match_result_model.dart';
+import 'referral_service.dart';
 
 class MatchResultService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -66,6 +67,12 @@ class MatchResultService {
           if (winnerId != null) {
             await _advanceWinner(tournamentId, match, winnerId, winnerTeam);
           }
+
+          final referralService = ReferralService();
+          await Future.wait([
+            referralService.checkAndAwardReferralBonus(match.participant1Id),
+            referralService.checkAndAwardReferralBonus(match.participant2Id),
+          ]);
         }
       } else {
         await ref.update({
